@@ -83,7 +83,7 @@ def render_hotline(header, cases, sheet_no=1):
     bb = d.textbbox((0,0), no_str, font=f_no)
     tw = bb[2]-bb[0]; th = bb[3]-bb[1]
     no_x = X(104 + (194-104-tw)//2)
-    no_y = Y(109 + (168-109-th)//3)   # //3 で上寄り
+    no_y = Y(109 + 3)   # 上端から3px
     d.text((no_x, no_y), no_str, font=f_no, fill="black")
 
     # ===== ヘッダー =====
@@ -135,11 +135,15 @@ def render_hotline(header, cases, sheet_no=1):
                     "ICU個室(感染等)満床":    (730,yr1),  # cluster[19-20]間・左 X=730
                     "熱傷患者受入不能":       (948,yr1),  # cluster[27]の左 X=948
                 }
-                if case.get("reason1_sub") in sub_map: dm(*sub_map[case["reason1_sub"]],r=12)
+                if case.get("reason1_sub") in sub_map:
+                    cx,cy = sub_map[case["reason1_sub"]]
+                    d.text((X(cx-10),Y(cy-14)),"✔",font=f28,fill="black")
             elif reason=="2_マンパワー":
                 dm(295,yr2,r=12)
                 sub_map2={"他患の処置・手術等で余力なし":(465,yr2),"別の救急患者の搬入直前・直後":(735,yr2)}
-                if case.get("reason2_sub") in sub_map2: dm(*sub_map2[case["reason2_sub"]],r=12)
+                if case.get("reason2_sub") in sub_map2:
+                    cx,cy = sub_map2[case["reason2_sub"]]
+                    d.text((X(cx-10),Y(cy-14)),"✔",font=f28,fill="black")
             elif reason=="3_院内専門科":
                 dm(292,yr3,r=12)  # cluster[0] X=292
                 if case.get("reason3_dept"):
@@ -149,7 +153,9 @@ def render_hotline(header, cases, sheet_no=1):
                     "学会等で不在":(820,yr3),  # cluster[19-20]間・中央右 X=820
                     "麻酔科対応不能":(960,yr3), # cluster[24-25]間・中央右 X=960
                 }
-                if case.get("reason3_sub") in sub_map3: dm(*sub_map3[case["reason3_sub"]],r=12)
+                if case.get("reason3_sub") in sub_map3:
+                    cx,cy = sub_map3[case["reason3_sub"]]
+                    d.text((X(cx-10),Y(cy-14)),"✔",font=f28,fill="black")
     return base
 
 # ===== セッション状態 =====
