@@ -118,7 +118,7 @@ def render_hotline(header, cases, sheet_no=1):
         if case.get("team"): d.text((X(970),Y(yn)),case["team"],font=f26,fill="black")
         if case.get("age"): d.text((X(235),Y(yc)),str(case["age"]),font=f26,fill="black")
         if case.get("gender")=="M": dm(432,yc+20,r=14)
-        elif case.get("gender")=="F": dm(512,yc+20,r=14)
+        elif case.get("gender")=="F": dm(500,yc+20,r=14)
 
         lines=[]; line=""
         for ch in (case.get("summary") or ""):
