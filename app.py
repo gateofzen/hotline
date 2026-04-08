@@ -205,8 +205,10 @@ st.divider()
 st.subheader(f"➕ 症例 {n+1} を入力")
 cc1,cc2=st.columns(2)
 with cc1:
-    # 現在時刻を切り捨て（5分刻み）でデフォルトに
-    _now = datetime.now()
+    # 現在時刻（JST）を切り捨て（5分刻み）でデフォルトに
+    from datetime import timezone, timedelta
+    _jst = timezone(timedelta(hours=9))
+    _now = datetime.now(_jst)
     _rounded = f"{_now.hour:02d}:{(_now.minute // 5) * 5:02d}"
     _nearest_idx = TIME_OPTIONS.index(_rounded) if _rounded in TIME_OPTIONS else 0
     sel_time=st.selectbox("時刻", TIME_OPTIONS, index=_nearest_idx, key="inp_time")
