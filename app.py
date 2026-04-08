@@ -103,7 +103,7 @@ def render_hotline(header, cases):
 
         # 時刻
         if case.get("time"):
-            d.text((X(295), Y(yn)), case["time"], font=f26, fill="black")
+            d.text((X(308), Y(yn)), case["time"], font=f26, fill="black")
 
         # 依頼回数
         if case.get("req_count") == "初回":
@@ -163,15 +163,15 @@ def render_hotline(header, cases):
             elif reason == "2_マンパワー":
                 dm(295, yr2, r=12)   # "2." X=295
                 sub_map2 = {
-                    "他患の処置・手術等で余力なし": (460,yr2),
-                    "別の救急患者の搬入直前・直後": (720,yr2),
+                    "他患の処置・手術等で余力なし": (428,yr2),
+                    "別の救急患者の搬入直前・直後": (620,yr2),
                 }
                 if case.get("reason2_sub") in sub_map2:
                     dm(*sub_map2[case["reason2_sub"]], r=12)
             elif reason == "3_院内専門科":
                 dm(295, yr3, r=12)   # "3." X=295
                 if case.get("reason3_dept"):
-                    d.text((X(405), Y(yr3-14)), case["reason3_dept"].rstrip("科"), font=f28, fill="black")
+                    d.text((X(415), Y(yr3-20)), case["reason3_dept"].rstrip("科"), font=f22, fill="black")
                 sub_map3 = {
                     "当該科手術中": (568,yr3), "学会等で不在": (715,yr3),
                     "麻酔科対応不能": (860,yr3),
