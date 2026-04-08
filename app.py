@@ -88,8 +88,8 @@ def render_hotline(header, cases, sheet_no=1):
     no_str = str(sheet_no)
     bb = d.textbbox((0,0), no_str, font=f_no)
     tw = bb[2]-bb[0]; th = bb[3]-bb[1]
-    no_x = X(104 + (194-104-tw)//2)
-    no_y = Y(109 + 3)   # 上端から3px
+    no_x = X(104 + (194-104-tw)//2 + 8)   # 少し右
+    no_y = Y(109)                            # 上端ぴったり
     d.text((no_x, no_y), no_str, font=f_no, fill="black")
 
     # ===== ヘッダー =====
@@ -117,7 +117,7 @@ def render_hotline(header, cases, sheet_no=1):
             if num: d.text((X(718),Y(yn)),num,font=f26,fill="black")
         if case.get("team"): d.text((X(970),Y(yn)),case["team"],font=f26,fill="black")
         if case.get("age"): d.text((X(235),Y(yc)),str(case["age"]),font=f26,fill="black")
-        if case.get("gender")=="M": dm(442,yc+20,r=14)
+        if case.get("gender")=="M": dm(432,yc+20,r=14)
         elif case.get("gender")=="F": dm(512,yc+20,r=14)
 
         lines=[]; line=""
@@ -129,7 +129,7 @@ def render_hotline(header, cases, sheet_no=1):
             d.text((X(168),Y(yg+li*30)),ln,font=f22,fill="black")
 
         outcome=case.get("outcome","")
-        tenki_map={"搬入":(183,yn2),"お断り":(270,yn2),"2次やかかりつけ医案内":(500,yn2),"患者都合":(755,yn2),"その他":(183,yt+168)}
+        tenki_map={"搬入":(172,yn2),"お断り":(270,yn2),"2次やかかりつけ医案内":(500,yn2),"患者都合":(743,yn2),"その他":(172,yt+160)}
         if outcome in tenki_map:
             cx,cy = tenki_map[outcome]
             draw_check(cx,cy)
