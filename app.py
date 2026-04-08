@@ -196,28 +196,25 @@ if "hl_editing" not in st.session_state:
     st.session_state.hl_editing = None
 
 if n > 0:
-    # コンパクト表示用CSS
     st.markdown("""<style>
-    div[data-testid="stHorizontalBlock"] > div { min-width:0!important; }
-    .compact-btn button { padding:2px 8px!important; font-size:12px!important; height:28px!important; }
+    [data-testid="stHorizontalBlock"] > div { min-width:0!important; }
+    button[kind="secondary"] { padding:1px 6px!important; font-size:11px!important; min-height:24px!important; height:24px!important; line-height:1!important; }
     </style>""", unsafe_allow_html=True)
 
     for i, c in enumerate(cases):
-        shift_c = time_to_shift(c.get("time",""))
+        t = c.get("time","--:--")
         team = c.get("team","") or "不明"
         outcome = c.get("outcome","")
-        t = c.get("time","--:--")
-        # 1行: 情報テキスト + 編集 + 削除
-        ci, ce, cd = st.columns([7, 1, 1])
+        ci, ce, cd = st.columns([8, 1, 1])
         with ci:
-            st.markdown(f"<span style='font-size:13px'><b>{i+1}.{t}</b> {team} →{outcome}</span>",
+            st.markdown(f"<div style='font-size:12px;padding:4px 0'><b>{i+1}.{t}</b> {team} →{outcome}</div>",
                         unsafe_allow_html=True)
         with ce:
-            if st.button("編集", key=f"hl_edit_{i}", help="この症例を編集"):
+            if st.button("✏", key=f"hl_edit_{i}", help="編集"):
                 st.session_state.hl_editing = i
                 st.rerun()
         with cd:
-            if st.button("削除", key=f"hl_del_{i}", help="この症例を削除"):
+            if st.button("🗑", key=f"hl_del_{i}", help="削除"):
                 st.session_state.hl_cases.pop(i)
                 save_cases(st.session_state.hl_cases)
                 if st.session_state.hl_editing == i:
