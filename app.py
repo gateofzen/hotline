@@ -195,49 +195,34 @@ st.markdown(f"**🚑 登録済み: {n}件（日勤 {len(nisshin)}件 / 夜勤 {l
 if "hl_editing" not in st.session_state:
     st.session_state.hl_editing = None
 
-# 編集ボタン・削除ボタンの処理
-hl_params = st.query_params
-if "hl_action" in hl_params and "hl_idx" in hl_params:
-    _action = hl_params["hl_action"]
-    _idx = int(hl_params["hl_idx"])
-    if _action == "del" and 0 <= _idx < len(st.session_state.hl_cases):
-        st.session_state.hl_cases.pop(_idx)
-        save_cases(st.session_state.hl_cases)
-        st.session_state.hl_editing = None
-    elif _action == "edit" and 0 <= _idx < len(st.session_state.hl_cases):
-        st.session_state.hl_editing = _idx
-    st.query_params.clear()
-    st.rerun()
-
 if n > 0:
-    rows_html = ""
+    # コンパクト表示用CSS
+    st.markdown("""<style>
+    div[data-testid="stHorizontalBlock"] > div { min-width:0!important; }
+    .compact-btn button { padding:2px 8px!important; font-size:12px!important; height:28px!important; }
+    </style>""", unsafe_allow_html=True)
+
     for i, c in enumerate(cases):
         shift_c = time_to_shift(c.get("time",""))
-        team = c.get("team","") or "隊名なし"
+        team = c.get("team","") or "不明"
         outcome = c.get("outcome","")
-        edit_url = f"?hl_action=edit&hl_idx={i}"
-        del_url  = f"?hl_action=del&hl_idx={i}"
-        rows_html += (
-            f'<tr>'
-            f'<td class="nm" style="white-space:nowrap;font-size:13px;padding:3px 3px"><b>{i+1}.{c.get("time","--:--")}</b></td>'
-            f'<td class="dt" style="white-space:nowrap;font-size:12px;padding:3px 2px">{team}</td>'
-            f'<td class="dt" style="white-space:nowrap;font-size:12px;padding:3px 2px">{outcome}</td>'
-            f'<td style="padding:3px 2px"><a href="{edit_url}" target="_top" style="background:#1a5276;color:white;padding:3px 7px;border-radius:4px;font-size:12px;text-decoration:none;white-space:nowrap">編集</a></td>'
-            f'<td style="padding:3px 2px"><a href="{del_url}" target="_top" style="background:#a33;color:white;padding:3px 7px;border-radius:4px;font-size:12px;text-decoration:none;white-space:nowrap">削除</a></td>'
-            f'</tr>'
-        )
-    html = f'''
-<style>
-  .hlpt td{{border:none}}
-  .hlpt .nm{{color:#111}}
-  .hlpt .dt{{color:#444}}
-  @media(prefers-color-scheme:dark){{
-    .hlpt .nm{{color:#fff}}
-    .hlpt .dt{{color:#ccc}}
-  }}
-</style>
-<table class="hlpt" style="width:100%;border-collapse:collapse">{rows_html}</table>'''
-    components.html(html, height=n*34+15, scrolling=False)
+        t = c.get("time","--:--")
+        # 1行: 情報テキスト + 編集 + 削除
+        ci, ce, cd = st.columns([7, 1, 1])
+        with ci:
+            st.markdown(f"<span style='font-size:13px'><b>{i+1}.{t}</b> {team} →{outcome}</span>",
+                        unsafe_allow_html=True)
+        with ce:
+            if st.button("編集", key=f"hl_edit_{i}", help="この症例を編集"):
+                st.session_state.hl_editing = i
+                st.rerun()
+        with cd:
+            if st.button("削除", key=f"hl_del_{i}", help="この症例を削除"):
+                st.session_state.hl_cases.pop(i)
+                save_cases(st.session_state.hl_cases)
+                if st.session_state.hl_editing == i:
+                    st.session_state.hl_editing = None
+                st.rerun()
 
 # ===== 編集モード =====
 hl_edit_idx = st.session_state.hl_editing
