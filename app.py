@@ -167,8 +167,8 @@ def render_hotline(header, cases, sheet_no=1):
             elif reason == "2_マンパワー":
                 dm(295, yr2, r=12)   # "2." X=295
                 sub_map2 = {
-                    "他患の処置・手術等で余力なし": (458,yr2),
-                    "別の救急患者の搬入直前・直後": (700,yr2),
+                    "他患の処置・手術等で余力なし": (507,yr2),
+                    "別の救急患者の搬入直前・直後": (822,yr2),
                 }
                 if case.get("reason2_sub") in sub_map2:
                     dm(*sub_map2[case["reason2_sub"]], r=12)
@@ -177,8 +177,8 @@ def render_hotline(header, cases, sheet_no=1):
                 if case.get("reason3_dept"):
                     d.text((X(415), Y(yr3-20)), case["reason3_dept"].rstrip("科"), font=f22, fill="black")
                 sub_map3 = {
-                    "当該科手術中": (620,yr3), "学会等で不在": (765,yr3),
-                    "麻酔科対応不能": (910,yr3),
+                    "当該科手術中": (644,yr3), "学会等で不在": (777,yr3),
+                    "麻酔科対応不能": (837,yr3),
                 }
                 if case.get("reason3_sub") in sub_map3:
                     dm(*sub_map3[case["reason3_sub"]], r=12)
