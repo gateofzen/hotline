@@ -10,67 +10,47 @@ FONT_CANDIDATES = [
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/opentype/noto/NotoSansJP-Regular.otf",
 ]
 _FONT_PATH = None
 for _p in FONT_CANDIDATES:
     if os.path.exists(_p):
-        _FONT_PATH = _p
-        break
+        _FONT_PATH = _p; break
 if _FONT_PATH is None:
     st.error("⚠️ 日本語フォントが見つかりません。packages.txt に fonts-noto-cjk を追加してください。")
-else:
-    st.caption(f"✅ フォント: {_FONT_PATH}")
 
 def get_font(size):
-    global _FONT_PATH
     if _FONT_PATH:
         return ImageFont.truetype(_FONT_PATH, max(10, size))
     return ImageFont.load_default()
 
 # ===== ファイル永続化 =====
 CASES_FILE = "hl_cases.json"
-HEADER_FILE = "hl_header.json"
 
 def load_cases():
     if os.path.exists(CASES_FILE):
         try:
             with open(CASES_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception:
-            return []
+        except: return []
     return []
 
 def save_cases(cases):
     try:
         with open(CASES_FILE, "w", encoding="utf-8") as f:
             json.dump(cases, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
+    except: pass
 
-def load_header():
-    if os.path.exists(HEADER_FILE):
-        try:
-            with open(HEADER_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return None
-
-def save_header(h):
+# ===== 時刻から勤務帯判定 =====
+def time_to_shift(time_str):
+    """'HH:MM' → '日勤' or '夜勤'。8:30-16:30=日勤"""
     try:
-        with open(HEADER_FILE, "w", encoding="utf-8") as f:
-            json.dump(h, f, ensure_ascii=False)
-    except Exception:
-        pass
-
-# ===== 勤務帯自動判定 =====
-def detect_shift_now():
-    now = datetime.now()
-    minutes = now.hour * 60 + now.minute
-    if 8 * 60 + 30 <= minutes < 16 * 60 + 30:
-        return "日勤"
-    return "夜勤"
+        h, m = map(int, time_str.split(":"))
+        minutes = h * 60 + m
+        if 8*60+30 <= minutes < 16*60+30:
+            return "日勤"
+        return "夜勤"
+    except:
+        return "夜勤"
 
 RESCUE_TEAMS = [
     "","中央","大通","桑園","山鼻","北","篠路","新光","東","栄","東苗穂",
@@ -86,7 +66,7 @@ TIME_OPTIONS = [""] + [f"{h:02d}:{m:02d}" for h in range(24) for m in range(0,60
 def render_hotline(header, cases, sheet_no=1):
     base = Image.open("hotline.png").convert("RGB")
     W, H = base.size
-    sx = W/1413; sy = H/2000; s = min(sx,sy)
+    sx=W/1413; sy=H/2000; s=min(sx,sy)
     def X(v): return int(v*sx)
     def Y(v): return int(v*sy)
     def R(v): return max(4,int(v*s))
@@ -95,21 +75,26 @@ def render_hotline(header, cases, sheet_no=1):
         d.ellipse([X(cx)-R(r),Y(cy)-R(r),X(cx)+R(r),Y(cy)+R(r)],outline="black",width=max(2,R(4)))
 
     d = ImageDraw.Draw(base)
-    f34=F(34); f30=F(30); f26=F(26); f22=F(22); f28=F(28)
+    f34=F(34); f30=F(30); f26=F(26); f22=F(22)
 
-    # No.
-    f_no=F(52); no_str=str(sheet_no)
-    bb=d.textbbox((0,0),no_str,font=f_no); tw_no=bb[2]-bb[0]
-    d.text((X(11+(135-11-tw_no)//2),Y(28)),no_str,font=f_no,fill="black")
+    # ===== No.（ヘッダー行 Y=109-168, X=0-194の中央）=====
+    f_no = F(42)
+    no_str = str(sheet_no)
+    bb = d.textbbox((0,0), no_str, font=f_no)
+    tw = bb[2]-bb[0]; th = bb[3]-bb[1]
+    no_x = X(0 + (194-tw)//2)
+    no_y = Y(109 + (168-109-th)//2)
+    d.text((no_x, no_y), no_str, font=f_no, fill="black")
 
-    # ヘッダー
-    dt=header["date"] if isinstance(header["date"],date) else date.fromisoformat(header["date"])
-    wd=WEEKDAYS[dt.weekday()]
+    # ===== ヘッダー =====
+    dt = header["date"] if isinstance(header["date"],date) else date.fromisoformat(str(header["date"]))
+    wd = WEEKDAYS[dt.weekday()]
     d.text((X(260),Y(108)),str(dt.year),font=f30,fill="black")
     d.text((X(420),Y(108)),str(dt.month),font=f30,fill="black")
     d.text((X(485),Y(108)),str(dt.day),font=f30,fill="black")
     d.text((X(590),Y(108)),wd,font=f30,fill="black")
-    if header["shift"]=="日勤": dm(701,138,r=18)
+    shift = header["shift"]
+    if shift=="日勤": dm(701,138,r=18)
     else: dm(778,138,r=18)
     d.text((X(1080),Y(106)),header["leader"],font=f34,fill="black")
 
@@ -144,11 +129,12 @@ def render_hotline(header, cases, sheet_no=1):
         if outcome=="お断り":
             reason=case.get("reason","")
             if reason=="1_満床":
-                dm(197,yr1,r=12)  # "1."の上 X=197（スキャン: X=185-209中心）
+                # "1."テキスト中心X=197（スキャン確定）
+                dm(197,yr1,r=12)
                 sub_map={
-                    "満床・満床に準ずる状態":(340,yr1),
-                    "ICU個室(感染等)満床":(510,yr1),
-                    "熱傷患者受入不能":(705,yr1),
+                    "満床・満床に準ずる状態":(362,yr1),   # □左辺X=344-345, 右辺X=380-381 → 中心362
+                    "ICU個室(感染等)満床":    (556,yr1),   # X=548-549,583 → 中心556
+                    "熱傷患者受入不能":       (782,yr1),   # X=774-789 → 中心782
                 }
                 if case.get("reason1_sub") in sub_map: dm(*sub_map[case["reason1_sub"]],r=12)
             elif reason=="2_マンパワー":
@@ -159,48 +145,45 @@ def render_hotline(header, cases, sheet_no=1):
                 dm(289,yr3,r=12)
                 if case.get("reason3_dept"):
                     d.text((X(415),Y(yr3-20)),case["reason3_dept"].rstrip("科"),font=f22,fill="black")
-                sub_map3={"当該科手術中":(626,yr3),"学会等で不在":(762,yr3),"麻酔科対応不能":(952,yr3)}
+                sub_map3={
+                    "当該科手術中":(629,yr3),  # X=622-643 → 中心629
+                    "学会等で不在": (767,yr3),  # X=748-786 → 中心767
+                    "麻酔科対応不能":(1010,yr3), # X=952-1022 → 中心1010 ← 大幅右移動
+                }
                 if case.get("reason3_sub") in sub_map3: dm(*sub_map3[case["reason3_sub"]],r=12)
     return base
 
-# ===== セッション状態（ファイルから復元）=====
+# ===== セッション状態 =====
 if "hl_cases" not in st.session_state:
     st.session_state.hl_cases = load_cases()
 if "hl_header" not in st.session_state:
-    saved = load_header()
-    auto_shift = detect_shift_now()
-    if saved:
-        saved["shift"] = auto_shift  # 起動時に現在時刻で更新
-        st.session_state.hl_header = saved
-    else:
-        st.session_state.hl_header = {"date": date.today().isoformat(), "shift": auto_shift, "leader": "前川"}
+    st.session_state.hl_header = {"date": date.today().isoformat(), "leader": "前川"}
 
 # ===== ヘッダー =====
 st.subheader("📋 基本情報")
-auto_shift = detect_shift_now()
-st.info(f"🕐 現在時刻から自動判定: **{auto_shift}**（8:30-16:30=日勤、それ以外=夜勤）")
-
 c1,c2 = st.columns(2)
 with c1:
     saved_date = st.session_state.hl_header.get("date", date.today().isoformat())
-    input_date = st.date_input("日付", value=date.fromisoformat(saved_date) if isinstance(saved_date,str) else saved_date)
+    input_date = st.date_input("日付", value=date.fromisoformat(str(saved_date)))
+with c2:
     leader = st.selectbox("リーダー医師名", LEADERS,
                           index=LEADERS.index(st.session_state.hl_header.get("leader","前川")))
-
-header = {"date": input_date.isoformat(), "shift": auto_shift, "leader": leader}
-st.session_state.hl_header = header
-save_header(header)
+st.session_state.hl_header = {"date": input_date.isoformat(), "leader": leader}
 
 # ===== 登録済み一覧 =====
 st.divider()
-n=len(st.session_state.hl_cases)
-n_sheets=max(1,(n+5)//6)
-st.subheader(f"🚑 登録済み症例: {n}件（{n_sheets}枚分）")
-for i,c in enumerate(st.session_state.hl_cases):
-    sheet=i//6+1
-    ca,cb=st.columns([6,1])
+cases = st.session_state.hl_cases
+n = len(cases)
+
+# 日勤・夜勤で件数集計
+nisshin = [c for c in cases if time_to_shift(c.get("time","")) == "日勤"]
+yashin  = [c for c in cases if time_to_shift(c.get("time","")) == "夜勤"]
+st.subheader(f"🚑 登録済み: {n}件（日勤{len(nisshin)}件 / 夜勤{len(yashin)}件）")
+for i,c in enumerate(cases):
+    shift_c = time_to_shift(c.get("time",""))
+    ca,cb = st.columns([6,1])
     with ca:
-        st.write(f"**No.{sheet}-症例{i%6+1}**　{c.get('time','--:--')}　{c.get('team','') or '隊名なし'}救急隊　→ {c.get('outcome','')}")
+        st.write(f"**{i+1}**　{c.get('time','--:--')}【{shift_c}】　{c.get('team','') or '隊名なし'}救急隊　→ {c.get('outcome','')}")
     with cb:
         if st.button("削除",key=f"del_{i}"):
             st.session_state.hl_cases.pop(i)
@@ -209,9 +192,12 @@ for i,c in enumerate(st.session_state.hl_cases):
 
 # ===== 新規入力 =====
 st.divider()
-st.subheader(f"➕ 症例 {n+1} を入力（No.{(n//6)+1} の {n%6+1}枚目）")
+st.subheader(f"➕ 症例 {n+1} を入力")
 cc1,cc2=st.columns(2)
-with cc1: sel_time=st.selectbox("時刻",TIME_OPTIONS,key="inp_time")
+with cc1:
+    sel_time=st.selectbox("時刻",TIME_OPTIONS,key="inp_time")
+    if sel_time:
+        st.caption(f"→ **{time_to_shift(sel_time)}**")
 with cc2: team=st.selectbox("依頼先救急隊",RESCUE_TEAMS,key="inp_team")
 cc3,cc4,cc5=st.columns(3)
 with cc3: req_count=st.selectbox("依頼回数",["初回","2回目","3回目","4回目以上"],key="inp_req")
@@ -245,25 +231,32 @@ if st.button("✅ この症例を登録",type="primary",use_container_width=True
     save_cases(st.session_state.hl_cases)
     st.rerun()
 
-# ===== 出力 =====
+# ===== 出力（日勤・夜勤を別紙）=====
 st.divider()
 oc1,oc2=st.columns(2)
 with oc1:
     if st.button("🖨️ 受付対応表を生成",type="primary",use_container_width=True,
                  disabled=(len(st.session_state.hl_cases)==0)):
-        all_cases=st.session_state.hl_cases
-        n_sh=max(1,(len(all_cases)+5)//6)
-        date_str=input_date.strftime('%Y%m%d')
-        for sh in range(n_sh):
-            sheet_cases=all_cases[sh*6:sh*6+6]
-            with st.spinner(f"No.{sh+1} 生成中..."):
-                result=render_hotline(st.session_state.hl_header,sheet_cases,sheet_no=sh+1)
-            st.write(f"**No.{sh+1}**（症例{sh*6+1}〜{min(sh*6+len(sheet_cases),len(all_cases))}）")
-            st.image(result,use_container_width=True)
-            buf=io.BytesIO()
-            result.save(buf,format="JPEG",quality=95)
-            st.download_button(f"📥 No.{sh+1} 保存",buf.getvalue(),
-                f"hotline_{date_str}_{auto_shift}_No{sh+1}.jpg","image/jpeg",key=f"dl_{sh}")
+        date_str = input_date.strftime('%Y%m%d')
+
+        for shift_label, shift_cases in [("日勤", nisshin), ("夜勤", yashin)]:
+            if not shift_cases:
+                continue
+            st.write(f"### 📄 {shift_label}（{len(shift_cases)}件）")
+            n_sh = max(1,(len(shift_cases)+5)//6)
+            header_for_render = {"date": input_date.isoformat(), "shift": shift_label, "leader": leader}
+            for sh in range(n_sh):
+                sheet_cases = shift_cases[sh*6:sh*6+6]
+                with st.spinner(f"{shift_label} No.{sh+1} 生成中..."):
+                    result = render_hotline(header_for_render, sheet_cases, sheet_no=sh+1)
+                st.write(f"**{shift_label} No.{sh+1}**（症例{sh*6+1}〜{min(sh*6+len(sheet_cases),len(shift_cases))}）")
+                st.image(result, use_container_width=True)
+                buf=io.BytesIO()
+                result.save(buf,format="JPEG",quality=95)
+                st.download_button(
+                    f"📥 {shift_label} No.{sh+1} 保存", buf.getvalue(),
+                    f"hotline_{date_str}_{shift_label}_No{sh+1}.jpg","image/jpeg",
+                    key=f"dl_{shift_label}_{sh}")
 with oc2:
     if st.button("🗑️ 全症例をリセット",use_container_width=True):
         st.session_state.hl_cases=[]
