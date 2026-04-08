@@ -222,8 +222,8 @@ if n > 0:
             f'<td class="nm" style="white-space:nowrap;font-size:13px;padding:3px 3px"><b>{i+1}.{c.get("time","--:--")}</b></td>'
             f'<td class="dt" style="white-space:nowrap;font-size:12px;padding:3px 2px">{team}</td>'
             f'<td class="dt" style="white-space:nowrap;font-size:12px;padding:3px 2px">{outcome}</td>'
-            f'<td style="padding:3px 2px"><a href="{edit_url}" style="background:#1a5276;color:white;padding:3px 7px;border-radius:4px;font-size:12px;text-decoration:none;white-space:nowrap">編集</a></td>'
-            f'<td style="padding:3px 2px"><a href="{del_url}" style="background:#a33;color:white;padding:3px 7px;border-radius:4px;font-size:12px;text-decoration:none;white-space:nowrap">削除</a></td>'
+            f'<td style="padding:3px 2px"><a href="{edit_url}" target="_top" style="background:#1a5276;color:white;padding:3px 7px;border-radius:4px;font-size:12px;text-decoration:none;white-space:nowrap">編集</a></td>'
+            f'<td style="padding:3px 2px"><a href="{del_url}" target="_top" style="background:#a33;color:white;padding:3px 7px;border-radius:4px;font-size:12px;text-decoration:none;white-space:nowrap">削除</a></td>'
             f'</tr>'
         )
     html = f'''
