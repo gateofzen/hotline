@@ -6,14 +6,39 @@ from datetime import date
 st.set_page_config(page_title="ホットライン受付対応表", layout="centered")
 st.title("📞 ホットライン受付対応表")
 
+# フォント診断
+_FONT_PATH = None
+for _p in FONT_CANDIDATES:
+    if os.path.exists(_p):
+        _FONT_PATH = _p
+        break
+if _FONT_PATH is None:
+    st.error("⚠️ 日本語フォントが見つかりません。packages.txt に fonts-noto-cjk を追加してください。")
+else:
+    st.caption(f"✅ フォント: {_FONT_PATH}")
+
 FONT_CANDIDATES = [
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansJP-Regular.otf",
+    "/usr/share/fonts/truetype/noto/NotoSansJP-Regular.ttf",
+    "/usr/share/fonts/opentype/noto/NotoSans-Regular.ttf",
+    "/usr/local/share/fonts/NotoSansCJK-Regular.ttc",
 ]
+
+_FONT_PATH = None
+
 def get_font(size):
-    for path in FONT_CANDIDATES:
-        if os.path.exists(path):
-            return ImageFont.truetype(path, max(8, size))
+    global _FONT_PATH
+    if _FONT_PATH is None:
+        for path in FONT_CANDIDATES:
+            if os.path.exists(path):
+                _FONT_PATH = path
+                break
+    if _FONT_PATH:
+        return ImageFont.truetype(_FONT_PATH, max(10, size))
+    # フォントが見つからない場合は警告を出す
     return ImageFont.load_default()
 
 RESCUE_TEAMS = [
@@ -46,18 +71,18 @@ def render_hotline(header, cases):
 
     d = ImageDraw.Draw(base)
 
-    # フォント（基準サイズ→スケール後）
-    f48 = F(48); f44 = F(44); f40 = F(40); f36 = F(36); f34 = F(34)
+    # フォント（縮小済み）
+    f34 = F(34); f30 = F(30); f26 = F(26); f22 = F(22); f28 = F(28)
 
     # ===== ヘッダー（基準Y=108-168）=====
     dt = header["date"]
     wd = WEEKDAYS[dt.weekday()]
 
-    # 年月日曜日（確認済み座標）
-    d.text((X(280), Y(108)), str(dt.year),  font=f44, fill="black")
-    d.text((X(420), Y(108)), str(dt.month), font=f44, fill="black")
-    d.text((X(485), Y(108)), str(dt.day),   font=f44, fill="black")
-    d.text((X(590), Y(108)), wd,            font=f44, fill="black")
+    # 年月日曜日
+    d.text((X(260), Y(112)), str(dt.year),  font=f30, fill="black")
+    d.text((X(420), Y(112)), str(dt.month), font=f30, fill="black")
+    d.text((X(485), Y(112)), str(dt.day),   font=f30, fill="black")
+    d.text((X(590), Y(112)), wd,            font=f30, fill="black")
 
     # 日勤(X=701) / 夜勤(X=778)
     if header["shift"] == "日勤":
@@ -66,43 +91,44 @@ def render_hotline(header, cases):
         dm(778, 138, r=22)
 
     # リーダー医師名
-    d.text((X(1080), Y(108)), header["leader"], font=f48, fill="black")
+    d.text((X(1080), Y(106)), header["leader"], font=f34, fill="black")
 
     # ===== 症例ブロック =====
     for i, case in enumerate(cases):
         if i >= 6: break
         yt  = BLOCK_TOPS_REF[i]
-        yn  = yt - 8     # No.+時刻行（確認済み）
-        yc  = yt + 22    # 症例行（確認済み）
+        yn  = yt - 5     # 時刻/救急隊名行
+        yc  = yt + 21    # 症例行
         yg  = yt + 60    # 概略
         yn2 = yt + 131   # 転帰行
-        yr1 = yt + 240; yr2 = yt + 260; yr3 = yt + 280
+        # お断り理由Y（スキャン確定: rel=222,247,276）
+        yr1 = yt + 222; yr2 = yt + 247; yr3 = yt + 276
 
         # 時刻
         if case.get("time"):
-            d.text((X(295), Y(yn)), case["time"], font=f44, fill="black")
+            d.text((X(295), Y(yn)), case["time"], font=f26, fill="black")
 
         # 依頼回数
         if case.get("req_count") == "初回":
-            dm(620, yn+16, r=18)
+            dm(620, yn+14, r=16)
         else:
             num = (case.get("req_count") or "").replace("回目","").replace("回","")
             if num:
-                d.text((X(718), Y(yn)), num, font=f44, fill="black")
+                d.text((X(718), Y(yn)), num, font=f26, fill="black")
 
         # 依頼先
         if case.get("team"):
-            d.text((X(970), Y(yn)), case["team"], font=f40, fill="black")
+            d.text((X(970), Y(yn)), case["team"], font=f26, fill="black")
 
         # 年齢
         if case.get("age"):
-            d.text((X(235), Y(yc)), str(case["age"]), font=f44, fill="black")
+            d.text((X(235), Y(yc)), str(case["age"]), font=f26, fill="black")
 
-        # 性別（確認済み）
+        # 性別（スキャン確定: M=475, F=512）
         if case.get("gender") == "M":
-            dm(505, yc+22, r=18)
+            dm(475, yc+20, r=14)
         elif case.get("gender") == "F":
-            dm(548, yc+22, r=18)
+            dm(512, yc+20, r=14)
 
         # 概略
         lines = []
@@ -112,7 +138,7 @@ def render_hotline(header, cases):
             if len(line) >= 30: lines.append(line); line = ""
         if line: lines.append(line)
         for li, ln in enumerate(lines[:2]):
-            d.text((X(168), Y(yg + li*36)), ln, font=f34, fill="black")
+            d.text((X(168), Y(yg + li*32)), ln, font=f22, fill="black")
 
         # 転帰
         outcome = case.get("outcome","")
@@ -130,7 +156,7 @@ def render_hotline(header, cases):
         if outcome == "お断り":
             reason = case.get("reason","")
             if reason == "1_満床":
-                dm(215, yr1, r=13)
+                dm(160, yr1, r=12)   # "1." はX=160
                 sub_map = {
                     "満床": (263,yr1), "満床に準ずる状態": (405,yr1),
                     "ICU個室(感染等)満床": (600,yr1), "熱傷患者受入不能": (815,yr1),
@@ -138,7 +164,7 @@ def render_hotline(header, cases):
                 if case.get("reason1_sub") in sub_map:
                     dm(*sub_map[case["reason1_sub"]], r=12)
             elif reason == "2_マンパワー":
-                dm(215, yr2, r=13)
+                dm(288, yr2, r=12)   # "2." はX=288
                 sub_map2 = {
                     "他患の処置・手術等で余力なし": (398,yr2),
                     "別の救急患者の搬入直前・直後": (658,yr2),
@@ -146,9 +172,9 @@ def render_hotline(header, cases):
                 if case.get("reason2_sub") in sub_map2:
                     dm(*sub_map2[case["reason2_sub"]], r=12)
             elif reason == "3_院内専門科":
-                dm(215, yr3, r=13)
+                dm(288, yr3, r=12)   # "3." はX=288
                 if case.get("reason3_dept"):
-                    d.text((X(328), Y(yr3-14)), case["reason3_dept"].rstrip("科"), font=f36, fill="black")
+                    d.text((X(328), Y(yr3-14)), case["reason3_dept"].rstrip("科"), font=f28, fill="black")
                 sub_map3 = {
                     "当該科手術中": (597,yr3), "学会等で不在": (752,yr3),
                     "麻酔科対応不能": (907,yr3),
