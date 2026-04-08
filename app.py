@@ -6,6 +6,16 @@ from datetime import date
 st.set_page_config(page_title="ホットライン受付対応表", layout="centered")
 st.title("📞 ホットライン受付対応表")
 
+FONT_CANDIDATES = [
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansJP-Regular.otf",
+    "/usr/share/fonts/truetype/noto/NotoSansJP-Regular.ttf",
+    "/usr/share/fonts/opentype/noto/NotoSans-Regular.ttf",
+    "/usr/local/share/fonts/NotoSansCJK-Regular.ttc",
+]
+
 # フォント診断
 _FONT_PATH = None
 for _p in FONT_CANDIDATES:
@@ -17,18 +27,6 @@ if _FONT_PATH is None:
 else:
     st.caption(f"✅ フォント: {_FONT_PATH}")
 
-FONT_CANDIDATES = [
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/opentype/noto/NotoSansJP-Regular.otf",
-    "/usr/share/fonts/truetype/noto/NotoSansJP-Regular.ttf",
-    "/usr/share/fonts/opentype/noto/NotoSans-Regular.ttf",
-    "/usr/local/share/fonts/NotoSansCJK-Regular.ttc",
-]
-
-_FONT_PATH = None
-
 def get_font(size):
     global _FONT_PATH
     if _FONT_PATH is None:
@@ -38,7 +36,6 @@ def get_font(size):
                 break
     if _FONT_PATH:
         return ImageFont.truetype(_FONT_PATH, max(10, size))
-    # フォントが見つからない場合は警告を出す
     return ImageFont.load_default()
 
 RESCUE_TEAMS = [
