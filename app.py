@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image, ImageDraw, ImageFont
 import io, os, json
 from datetime import date, datetime
@@ -189,15 +190,125 @@ n = len(cases)
 nisshin = [c for c in cases if time_to_shift(c.get("time","")) == "日勤"]
 yashin  = [c for c in cases if time_to_shift(c.get("time","")) == "夜勤"]
 st.markdown(f"**🚑 登録済み: {n}件（日勤 {len(nisshin)}件 / 夜勤 {len(yashin)}件）**")
-for i,c in enumerate(cases):
-    shift_c = time_to_shift(c.get("time",""))
-    ca,cb = st.columns([6,1])
-    with ca:
-        st.write(f"**{i+1}**　{c.get('time','--:--')}【{shift_c}】　{c.get('team','') or '隊名なし'}救急隊　→ {c.get('outcome','')}")
-    with cb:
-        if st.button("削除",key=f"del_{i}"):
-            st.session_state.hl_cases.pop(i)
+
+# 編集モード管理
+if "hl_editing" not in st.session_state:
+    st.session_state.hl_editing = None
+
+# 編集ボタン・削除ボタンの処理
+hl_params = st.query_params
+if "hl_action" in hl_params and "hl_idx" in hl_params:
+    _action = hl_params["hl_action"]
+    _idx = int(hl_params["hl_idx"])
+    if _action == "del" and 0 <= _idx < len(st.session_state.hl_cases):
+        st.session_state.hl_cases.pop(_idx)
+        save_cases(st.session_state.hl_cases)
+        st.session_state.hl_editing = None
+    elif _action == "edit" and 0 <= _idx < len(st.session_state.hl_cases):
+        st.session_state.hl_editing = _idx
+    st.query_params.clear()
+    st.rerun()
+
+if n > 0:
+    rows_html = ""
+    for i, c in enumerate(cases):
+        shift_c = time_to_shift(c.get("time",""))
+        team = c.get("team","") or "隊名なし"
+        outcome = c.get("outcome","")
+        edit_url = f"?hl_action=edit&hl_idx={i}"
+        del_url  = f"?hl_action=del&hl_idx={i}"
+        rows_html += (
+            f'<tr>'
+            f'<td class="nm" style="white-space:nowrap;font-size:13px;padding:3px 3px"><b>{i+1}.{c.get("time","--:--")}</b></td>'
+            f'<td class="dt" style="white-space:nowrap;font-size:12px;padding:3px 2px">{team}</td>'
+            f'<td class="dt" style="white-space:nowrap;font-size:12px;padding:3px 2px">{outcome}</td>'
+            f'<td style="padding:3px 2px"><a href="{edit_url}" style="background:#1a5276;color:white;padding:3px 7px;border-radius:4px;font-size:12px;text-decoration:none;white-space:nowrap">編集</a></td>'
+            f'<td style="padding:3px 2px"><a href="{del_url}" style="background:#a33;color:white;padding:3px 7px;border-radius:4px;font-size:12px;text-decoration:none;white-space:nowrap">削除</a></td>'
+            f'</tr>'
+        )
+    html = f'''
+<style>
+  .hlpt td{{border:none}}
+  .hlpt .nm{{color:#111}}
+  .hlpt .dt{{color:#444}}
+  @media(prefers-color-scheme:dark){{
+    .hlpt .nm{{color:#fff}}
+    .hlpt .dt{{color:#ccc}}
+  }}
+</style>
+<table class="hlpt" style="width:100%;border-collapse:collapse">{rows_html}</table>'''
+    components.html(html, height=n*34+15, scrolling=False)
+
+# ===== 編集モード =====
+hl_edit_idx = st.session_state.hl_editing
+if hl_edit_idx is not None and 0 <= hl_edit_idx < len(cases):
+    ec = cases[hl_edit_idx]
+    st.divider()
+    st.subheader(f"✏️ 症例 {hl_edit_idx+1} を編集")
+    ec1,ec2 = st.columns(2)
+    with ec1:
+        e_time = st.selectbox("時刻", TIME_OPTIONS,
+            index=TIME_OPTIONS.index(ec["time"]) if ec.get("time") in TIME_OPTIONS else 0,
+            key="e_time")
+        if e_time: st.caption(f"→ **{time_to_shift(e_time)}**")
+    with ec2:
+        e_team = st.selectbox("依頼先救急隊", RESCUE_TEAMS,
+            index=RESCUE_TEAMS.index(ec["team"]) if ec.get("team") in RESCUE_TEAMS else 0,
+            key="e_team")
+    ec3,ec4,ec5 = st.columns(3)
+    with ec3:
+        e_req = st.selectbox("依頼回数", ["初回","2回目","3回目","4回目以上"],
+            index=["初回","2回目","3回目","4回目以上"].index(ec["req_count"]) if ec.get("req_count") in ["初回","2回目","3回目","4回目以上"] else 0,
+            key="e_req")
+    with ec4:
+        e_age = st.number_input("年齢（才）", min_value=0, max_value=120,
+            value=int(ec["age"]) if ec.get("age") else 0, step=1, key="e_age")
+    with ec5:
+        gender_opts = ["M","F","未記載"]
+        e_gender = st.radio("性別", gender_opts, horizontal=True,
+            index=gender_opts.index(ec["gender"]) if ec.get("gender") in gender_opts else 2,
+            key="e_gender")
+    e_summary = st.text_area("概略", value=ec.get("summary",""), height=70, key="e_summary")
+    e_outcome = st.radio("転帰", ["搬入","お断り","2次やかかりつけ医案内","患者都合","その他"],
+        horizontal=True,
+        index=["搬入","お断り","2次やかかりつけ医案内","患者都合","その他"].index(ec["outcome"]) if ec.get("outcome") in ["搬入","お断り","2次やかかりつけ医案内","患者都合","その他"] else 0,
+        key="e_outcome")
+    e_reason=e_r1=e_r2=e_r3dept=e_r3sub=""
+    if e_outcome == "お断り":
+        reason_opts = ["1_満床","2_マンパワー","3_院内専門科"]
+        e_reason = st.radio("お断り理由", reason_opts,
+            format_func=lambda x:{"1_満床":"1. 病床の都合","2_マンパワー":"2. マンパワーの問題","3_院内専門科":"3. 院内専門科の都合"}[x],
+            index=reason_opts.index(ec["reason"]) if ec.get("reason") in reason_opts else 0,
+            key="e_reason")
+        if e_reason=="1_満床":
+            e_r1 = st.selectbox("病床理由詳細",["","満床・満床に準ずる状態","ICU個室(感染等)満床","熱傷患者受入不能"],
+                index=["","満床・満床に準ずる状態","ICU個室(感染等)満床","熱傷患者受入不能"].index(ec.get("reason1_sub","")) if ec.get("reason1_sub","") in ["","満床・満床に準ずる状態","ICU個室(感染等)満床","熱傷患者受入不能"] else 0,
+                key="e_r1")
+        elif e_reason=="2_マンパワー":
+            e_r2 = st.selectbox("マンパワー理由詳細",["","他患の処置・手術等で余力なし","別の救急患者の搬入直前・直後"],
+                index=["","他患の処置・手術等で余力なし","別の救急患者の搬入直前・直後"].index(ec.get("reason2_sub","")) if ec.get("reason2_sub","") in ["","他患の処置・手術等で余力なし","別の救急患者の搬入直前・直後"] else 0,
+                key="e_r2")
+        elif e_reason=="3_院内専門科":
+            e_r3dept = st.text_input("専門科名", value=ec.get("reason3_dept",""), key="e_r3dept")
+            e_r3sub = st.selectbox("専門科理由詳細",["","当該科手術中","学会等で不在","麻酔科対応不能"],
+                index=["","当該科手術中","学会等で不在","麻酔科対応不能"].index(ec.get("reason3_sub","")) if ec.get("reason3_sub","") in ["","当該科手術中","学会等で不在","麻酔科対応不能"] else 0,
+                key="e_r3sub")
+    ex1,ex2 = st.columns(2)
+    with ex1:
+        if st.button("💾 保存", type="primary", use_container_width=True, key="e_save"):
+            st.session_state.hl_cases[hl_edit_idx] = {
+                "time":e_time,"team":e_team,"req_count":e_req,
+                "age":e_age if e_age>0 else "","gender":e_gender if e_gender!="未記載" else "",
+                "summary":e_summary,"outcome":e_outcome,"reason":e_reason,
+                "reason1_sub":e_r1,"reason2_sub":e_r2,
+                "reason3_dept":e_r3dept,"reason3_sub":e_r3sub,
+            }
             save_cases(st.session_state.hl_cases)
+            st.session_state.hl_editing = None
+            st.rerun()
+    with ex2:
+        if st.button("キャンセル", use_container_width=True, key="e_cancel"):
+            st.session_state.hl_editing = None
             st.rerun()
 
 # ===== 新規入力 =====
