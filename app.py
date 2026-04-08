@@ -188,7 +188,7 @@ n = len(cases)
 # 日勤・夜勤で件数集計
 nisshin = [c for c in cases if time_to_shift(c.get("time","")) == "日勤"]
 yashin  = [c for c in cases if time_to_shift(c.get("time","")) == "夜勤"]
-st.subheader(f"🚑 登録済み: {n}件（日勤{len(nisshin)}件 / 夜勤{len(yashin)}件）")
+st.markdown(f"**🚑 登録済み: {n}件（日勤 {len(nisshin)}件 / 夜勤 {len(yashin)}件）**")
 for i,c in enumerate(cases):
     shift_c = time_to_shift(c.get("time",""))
     ca,cb = st.columns([6,1])
