@@ -207,7 +207,10 @@ if n > 0:
         outcome = c.get("outcome","")
         ci, ce, cd = st.columns([8, 1, 1])
         with ci:
-            st.markdown(f"<div style='font-size:12px;padding:4px 0'><b>{i+1}.{t}</b> {team} →{outcome}</div>",
+            age_str = f"{c.get('age','')}才" if c.get("age") else ""
+            gender_str = c.get("gender","")
+            info = " ".join(filter(None, [age_str, gender_str]))
+            st.markdown(f"<div style='font-size:15px;padding:4px 0'><b>{i+1}.{t}</b> {team} {info} →{outcome}</div>",
                         unsafe_allow_html=True)
         with ce:
             if st.button("✏", key=f"hl_edit_{i}", help="編集"):
@@ -234,9 +237,14 @@ if hl_edit_idx is not None and 0 <= hl_edit_idx < len(cases):
             key="e_time")
         if e_time: st.caption(f"→ **{time_to_shift(e_time)}**")
     with ec2:
-        e_team = st.selectbox("依頼先救急隊", RESCUE_TEAMS,
-            index=RESCUE_TEAMS.index(ec["team"]) if ec.get("team") in RESCUE_TEAMS else 0,
-            key="e_team")
+        _team_val = ec.get("team","")
+        _team_opts = RESCUE_TEAMS + ["その他（直接入力）"]
+        _team_idx = RESCUE_TEAMS.index(_team_val) if _team_val in RESCUE_TEAMS else (len(RESCUE_TEAMS) if _team_val else 0)
+        e_team_sel = st.selectbox("依頼先救急隊", _team_opts, index=_team_idx, key="e_team")
+        if e_team_sel == "その他（直接入力）":
+            e_team = st.text_input("救急隊名を入力", value=_team_val if _team_val not in RESCUE_TEAMS else "", key="e_team_other", placeholder="例: 石狩")
+        else:
+            e_team = e_team_sel
     ec3,ec4,ec5 = st.columns(3)
     with ec3:
         e_req = st.selectbox("依頼回数", ["初回","2回目","3回目","4回目以上"],
@@ -307,7 +315,12 @@ with cc1:
     sel_time=st.selectbox("時刻", TIME_OPTIONS, index=_nearest_idx, key="inp_time")
     if sel_time:
         st.caption(f"→ **{time_to_shift(sel_time)}**")
-with cc2: team=st.selectbox("依頼先救急隊",RESCUE_TEAMS,key="inp_team")
+with cc2:
+    team_sel = st.selectbox("依頼先救急隊", RESCUE_TEAMS + ["その他（直接入力）"], key="inp_team")
+    if team_sel == "その他（直接入力）":
+        team = st.text_input("救急隊名を入力", key="inp_team_other", placeholder="例: 石狩")
+    else:
+        team = team_sel
 cc3,cc4,cc5=st.columns(3)
 with cc3: req_count=st.selectbox("依頼回数",["初回","2回目","3回目","4回目以上"],key="inp_req")
 with cc4: age=st.number_input("年齢（才）",min_value=0,max_value=120,value=0,step=1,key="inp_age")
