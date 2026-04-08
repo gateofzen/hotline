@@ -2,7 +2,7 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import io
 import os
-from datetime import datetime, date
+from datetime import date
 
 st.set_page_config(page_title="ホットライン受付対応表", layout="centered")
 st.title("📞 ホットライン受付対応表")
@@ -19,287 +19,242 @@ def get_font(size):
             return ImageFont.truetype(path, size)
     return ImageFont.load_default()
 
-def getlength(text, font):
-    bb = ImageDraw.Draw(Image.new("RGB", (1,1))).textbbox((0,0), text, font=font)
-    return bb[2] - bb[0]
-
 def draw_maru(draw, center, r=14):
     x, y = center
-    draw.ellipse([x-r, y-r, x+r, y+r], outline="black", width=3)
+    draw.ellipse([x-r, y-r, x+r, y+r], outline="black", width=4)
 
-# ===== 救急隊リスト =====
+# ===== 定数 =====
 RESCUE_TEAMS = [
-    "", "中央","大通","桑園","山鼻","北","篠路","新光","東","栄","東苗穂",
+    "","中央","大通","桑園","山鼻","北","篠路","新光","東","栄","東苗穂",
     "白石","菊水","厚別","厚別西","豊平","西岡","平岸","清田","南","定山渓",
     "西","前田","西野","手稲","石山","あいの里","北野","警防","豊水","幌西",
     "藤野","八軒","北郷","札苗","苗穂","北エルム","東モエレ",
 ]
-
 LEADERS = ["前川","中嶋","森木","小舘","遠藤"]
-
 WEEKDAYS = ["月","火","水","木","金","土","日"]
-
-# ===== テンプレート定数 =====
-# 画像サイズ: 1413x2000
-# ヘッダー: Y=0-168
-# 各ブロック境界 Y: 168,460,749,1039,1329,1619,1911
 BLOCK_TOPS = [168, 460, 749, 1039, 1329, 1619]
-BLOCK_H = [292, 289, 290, 290, 290, 292]  # 各ブロック高さ
 
-# ブロック内相対Y（ブロック高さ292基準）
-# No.行: rel_y=0 (絶対 y_start)
-# 症例行: rel_y≈118
-# 転帰行: rel_y≈219
-# お断り理由行: rel_y≈268
-
-# ===== 描画関数 =====
+# ===== 描画 =====
 def render_hotline(header, cases):
     base = Image.open("hotline.png").convert("RGB")
     d = ImageDraw.Draw(base)
-
-    f16 = get_font(16)
-    f18 = get_font(18)
-    f20 = get_font(20)
-    f22 = get_font(22)
+    f24 = get_font(24)
     f26 = get_font(26)
+    f28 = get_font(28)
 
-    # ===== ヘッダー =====
-    # 年月日 (Y≈130)
+    # ヘッダー
     dt = header["date"]
     wd = WEEKDAYS[dt.weekday()]
-    d.text((245, 122), str(dt.year), font=f20, fill="black")
-    d.text((410, 122), str(dt.month), font=f20, fill="black")
-    d.text((530, 122), str(dt.day), font=f20, fill="black")
-    d.text((625, 122), wd, font=f20, fill="black")
+    d.text((330, 122), str(dt.year), font=f26, fill="black")
+    d.text((430, 122), str(dt.month), font=f26, fill="black")
+    d.text((520, 122), str(dt.day), font=f26, fill="black")
+    d.text((608, 122), wd, font=f26, fill="black")
 
-    # 日勤・夜勤
-    # 日勤◯中心: X≈795, 夜勤◯中心: X≈878  Y≈138
+    # 日勤(X=549) / 夜勤(X=693)
     if header["shift"] == "日勤":
-        draw_maru(d, (797, 138), r=16)
+        draw_maru(d, (549, 139), r=18)
     else:
-        draw_maru(d, (878, 138), r=16)
+        draw_maru(d, (693, 139), r=18)
 
-    # リーダー医師名
-    d.text((1010, 125), header["leader"], font=f22, fill="black")
+    d.text((1010, 122), header["leader"], font=f28, fill="black")
 
-    # ===== 各症例ブロック =====
     for i, case in enumerate(cases):
         if i >= 6:
             break
-        yt = BLOCK_TOPS[i]    # ブロック上端Y
+        yt = BLOCK_TOPS[i]
+        yn = yt + 16   # No.行テキストY
 
-        # --- No. + 時刻行 (yt + 0) ---
-        y_no = yt + 20
+        # 時刻（":"はテンプレート印刷済み → 左に時、右に分）
+        if case.get("hour"):
+            d.text((222, yn), case["hour"], font=f28, fill="black")
+        if case.get("minute"):
+            d.text((285, yn), case["minute"], font=f28, fill="black")
 
-        # 時刻
-        if case["time"]:
-            d.text((220, y_no), case["time"], font=f22, fill="black")
-
-        # 依頼回数
-        if case["req_count"] and case["req_count"] != "初回":
-            d.text((540, y_no), case["req_count"], font=f20, fill="black")
+        # 依頼回数（初回◯ or 数字）
+        if case.get("req_count") == "初回":
+            draw_maru(d, (635, yn+10), r=16)
         else:
-            # 初回に○
-            draw_maru(d, (540, y_no + 10), r=12)
+            num = case.get("req_count","").replace("回目","").replace("回","")
+            if num:
+                d.text((730, yn), num, font=f28, fill="black")
 
-        # 依頼先（救急隊名）
-        if case["team"]:
-            d.text((900, y_no), case["team"], font=f22, fill="black")
+        # 依頼先
+        if case.get("team"):
+            d.text((930, yn), case["team"], font=f28, fill="black")
 
-        # --- 症例行 (yt + 118) ---
-        y_case = yt + 118 + 15
+        # 症例行
+        yc = yt + 52
+        if case.get("age"):
+            d.text((290, yc), str(case["age"]), font=f28, fill="black")
+        if case.get("gender") == "M":
+            draw_maru(d, (490, yc+10), r=16)
+        elif case.get("gender") == "F":
+            draw_maru(d, (570, yc+10), r=16)
 
-        # 年齢
-        if case["age"]:
-            d.text((196, y_case), str(case["age"]), font=f20, fill="black")
-
-        # 性別 M/F
-        # M位置 X≈490, F位置 X≈555
-        if case["gender"] == "M":
-            draw_maru(d, (490, y_case + 8), r=14)
-        elif case["gender"] == "F":
-            draw_maru(d, (555, y_case + 8), r=14)
-
-        # 概略（折返し幅50文字）
-        y_ryaku = yt + 118 + 50
-        summary = case["summary"]
+        # 概略
+        yg = yt + 100
         lines = []
         line = ""
-        for ch in summary:
+        for ch in (case.get("summary") or ""):
             line += ch
-            if len(line) >= 45:
-                lines.append(line)
-                line = ""
+            if len(line) >= 38:
+                lines.append(line); line = ""
         if line:
             lines.append(line)
-        for li, ln in enumerate(lines[:2]):
-            d.text((130, y_ryaku + li * 28), ln, font=f18, fill="black")
+        for li, ln in enumerate(lines[:3]):
+            d.text((160, yg + li*32), ln, font=f26, fill="black")
 
-        # --- 転帰行 (yt + 219) ---
-        y_tenki = yt + 219 + 18
-
-        # 転帰チェックボックス位置（□の中心）
-        # 搬入 X≈162, お断り X≈325, 2次やかかりつけ X≈750, 患者都合 X≈975
-        # その他(下段) X≈213
+        # 転帰行
+        yt2 = yt + 219
+        yn2 = yt2 + 16
         tenki_map = {
-            "搬入":           (162, y_tenki),
-            "お断り":         (325, y_tenki),
-            "2次やかかりつけ医案内": (750, y_tenki),
-            "患者都合":       (975, y_tenki),
-            "その他":         (213, y_tenki + 45),
+            "搬入":               (162, yn2),
+            "お断り":             (347, yn2),
+            "2次やかかりつけ医案内": (644, yn2),
+            "患者都合":           (801, yn2),
+            "その他":             (175, yn2+45),
         }
-        if case["outcome"] in tenki_map:
-            cx, cy = tenki_map[case["outcome"]]
-            draw_maru(d, (cx, cy), r=13)
+        outcome = case.get("outcome","")
+        if outcome in tenki_map:
+            draw_maru(d, tenki_map[outcome], r=15)
 
-        # --- お断り理由行 (yt + 268) ---
-        y_kotowari = yt + 268
+        # お断り理由行
+        yr = yt + 268
+        yr1, yr2, yr3 = yr+15, yr+38, yr+62
 
-        if case["outcome"] == "お断り":
-            reason = case.get("reason", "")
-
-            # 理由1: 病床 X≈140
+        if outcome == "お断り":
+            reason = case.get("reason","")
             if reason == "1_満床":
-                draw_maru(d, (140, y_kotowari + 15), r=11)
-                # サブ選択
+                draw_maru(d, (140, yr1), r=12)
                 sub_map = {
-                    "満床": (265, y_kotowari + 15),
-                    "満床に準ずる状態": (390, y_kotowari + 15),
-                    "ICU個室(感染等)満床": (575, y_kotowari + 15),
-                    "熱傷患者受入不能": (790, y_kotowari + 15),
+                    "満床": (265,yr1), "満床に準ずる状態": (405,yr1),
+                    "ICU個室(感染等)満床": (600,yr1), "熱傷患者受入不能": (815,yr1),
                 }
-                sub = case.get("reason1_sub", "")
-                if sub in sub_map:
-                    draw_maru(d, sub_map[sub], r=10)
-
-            # 理由2: マンパワー
+                if case.get("reason1_sub") in sub_map:
+                    draw_maru(d, sub_map[case["reason1_sub"]], r=11)
             elif reason == "2_マンパワー":
-                draw_maru(d, (140, y_kotowari + 38), r=11)
+                draw_maru(d, (140, yr2), r=12)
                 sub_map2 = {
-                    "他患の処置・手術等で余力なし": (360, y_kotowari + 38),
-                    "別の救急患者の搬入直前・直後": (620, y_kotowari + 38),
+                    "他患の処置・手術等で余力なし": (400,yr2),
+                    "別の救急患者の搬入直前・直後": (660,yr2),
                 }
-                sub = case.get("reason2_sub", "")
-                if sub in sub_map2:
-                    draw_maru(d, sub_map2[sub], r=10)
-
-            # 理由3: 院内専門科
+                if case.get("reason2_sub") in sub_map2:
+                    draw_maru(d, sub_map2[case["reason2_sub"]], r=11)
             elif reason == "3_院内専門科":
-                draw_maru(d, (140, y_kotowari + 60), r=11)
-                # 科名
+                draw_maru(d, (140, yr3), r=12)
                 if case.get("reason3_dept"):
-                    d.text((310, y_kotowari + 50), case["reason3_dept"].rstrip("科"), font=f16, fill="black")
-                # サブ
+                    d.text((325, yr3-12), case["reason3_dept"].rstrip("科"), font=f24, fill="black")
                 sub_map3 = {
-                    "当該科手術中": (580, y_kotowari + 60),
-                    "学会等で不在": (730, y_kotowari + 60),
-                    "麻酔科対応不能": (875, y_kotowari + 60),
+                    "当該科手術中": (595,yr3), "学会等で不在": (750,yr3),
+                    "麻酔科対応不能": (905,yr3),
                 }
-                sub = case.get("reason3_sub", "")
-                if sub in sub_map3:
-                    draw_maru(d, sub_map3[sub], r=10)
-
+                if case.get("reason3_sub") in sub_map3:
+                    draw_maru(d, sub_map3[case["reason3_sub"]], r=11)
     return base
 
-# ===== UI =====
+# ===== セッション状態 =====
+if "hl_cases" not in st.session_state:
+    st.session_state.hl_cases = []
+if "hl_header" not in st.session_state:
+    st.session_state.hl_header = {"date": date.today(), "shift": "日勤", "leader": "前川"}
 
-# ヘッダー入力
+# ===== ヘッダー =====
 st.subheader("📋 基本情報")
-col1, col2, col3 = st.columns(3)
-with col1:
-    input_date = st.date_input("日付", value=date.today())
-with col2:
-    shift = st.radio("勤務帯", ["日勤", "夜勤"], horizontal=True)
-with col3:
-    leader = st.selectbox("リーダー医師名", LEADERS)
+c1, c2, c3 = st.columns(3)
+with c1:
+    input_date = st.date_input("日付", value=st.session_state.hl_header["date"])
+with c2:
+    shift = st.radio("勤務帯", ["日勤","夜勤"], horizontal=True,
+                     index=0 if st.session_state.hl_header["shift"]=="日勤" else 1)
+with c3:
+    leader = st.selectbox("リーダー医師名", LEADERS,
+                          index=LEADERS.index(st.session_state.hl_header["leader"]))
+st.session_state.hl_header = {"date": input_date, "shift": shift, "leader": leader}
 
-header = {"date": input_date, "shift": shift, "leader": leader}
-
+# ===== 症例リスト =====
 st.divider()
+n = len(st.session_state.hl_cases)
+st.subheader(f"🚑 登録済み症例: {n}件 / 6件")
 
-# 症例入力（最大6件）
-st.subheader("🚑 症例入力")
-n_cases = st.number_input("症例数", min_value=1, max_value=6, value=1, step=1)
+for i, c in enumerate(st.session_state.hl_cases):
+    team_str = c.get("team","") or "隊名なし"
+    h = c.get("hour","?"); m = c.get("minute","?")
+    outcome_str = c.get("outcome","")
+    col_a, col_b = st.columns([6,1])
+    with col_a:
+        st.write(f"**症例{i+1}**　{h}:{m}　{team_str}救急隊　→ {outcome_str}")
+    with col_b:
+        if st.button("削除", key=f"del_{i}"):
+            st.session_state.hl_cases.pop(i)
+            st.rerun()
 
-cases = []
-for i in range(int(n_cases)):
-    with st.expander(f"症例 {i+1}", expanded=(i == 0)):
-        c1, c2 = st.columns(2)
-        with c1:
-            time_val = st.text_input("時刻 (HH:MM)", key=f"time_{i}", placeholder="22:50")
-            team = st.selectbox("依頼先救急隊", RESCUE_TEAMS, key=f"team_{i}")
-        with c2:
-            req_count = st.selectbox("依頼回数", ["初回", "2回目", "3回目", "4回目以上"], key=f"req_{i}")
-            gender = st.radio("性別", ["M", "F", "未記載"], horizontal=True, key=f"gender_{i}")
+# ===== 新規入力 =====
+if n < 6:
+    st.divider()
+    st.subheader(f"➕ 症例 {n+1} を入力")
 
-        age = st.number_input("年齢（才）", min_value=0, max_value=120, value=0, step=1, key=f"age_{i}")
-        summary = st.text_area("概略", key=f"summary_{i}", height=70, placeholder="主訴・概略を入力")
+    cc1, cc2, cc3 = st.columns(3)
+    with cc1:
+        hour = st.text_input("時（HH）", max_chars=2, placeholder="22")
+    with cc2:
+        minute = st.text_input("分（MM）", max_chars=2, placeholder="50")
+    with cc3:
+        team = st.selectbox("依頼先救急隊", RESCUE_TEAMS)
 
-        outcome = st.radio(
-            "転帰",
-            ["搬入", "お断り", "2次やかかりつけ医案内", "患者都合", "その他"],
-            horizontal=True,
-            key=f"outcome_{i}"
+    cc4, cc5, cc6 = st.columns(3)
+    with cc4:
+        req_count = st.selectbox("依頼回数", ["初回","2回目","3回目","4回目以上"])
+    with cc5:
+        age = st.number_input("年齢（才）", min_value=0, max_value=120, value=0, step=1)
+    with cc6:
+        gender = st.radio("性別", ["M","F","未記載"], horizontal=True)
+
+    summary = st.text_area("概略", height=70, placeholder="主訴・経過を入力")
+    outcome = st.radio("転帰", ["搬入","お断り","2次やかかりつけ医案内","患者都合","その他"], horizontal=True)
+
+    reason = reason1_sub = reason2_sub = reason3_dept = reason3_sub = ""
+    if outcome == "お断り":
+        reason = st.radio("お断り理由",
+            ["1_満床","2_マンパワー","3_院内専門科"],
+            format_func=lambda x: {"1_満床":"1. 病床の都合","2_マンパワー":"2. マンパワーの問題","3_院内専門科":"3. 院内専門科の都合"}[x]
         )
+        if reason == "1_満床":
+            reason1_sub = st.selectbox("病床理由詳細", ["","満床","満床に準ずる状態","ICU個室(感染等)満床","熱傷患者受入不能"])
+        elif reason == "2_マンパワー":
+            reason2_sub = st.selectbox("マンパワー理由詳細", ["","他患の処置・手術等で余力なし","別の救急患者の搬入直前・直後"])
+        elif reason == "3_院内専門科":
+            reason3_dept = st.text_input("専門科名", placeholder="循環器")
+            reason3_sub = st.selectbox("専門科理由詳細", ["","当該科手術中","学会等で不在","麻酔科対応不能"])
 
-        case = {
-            "time": time_val,
-            "team": team,
+    if st.button("✅ この症例を登録", type="primary", use_container_width=True):
+        st.session_state.hl_cases.append({
+            "hour": hour, "minute": minute, "team": team,
             "req_count": req_count,
             "age": age if age > 0 else "",
             "gender": gender if gender != "未記載" else "",
-            "summary": summary,
-            "outcome": outcome,
-        }
+            "summary": summary, "outcome": outcome,
+            "reason": reason, "reason1_sub": reason1_sub,
+            "reason2_sub": reason2_sub, "reason3_dept": reason3_dept,
+            "reason3_sub": reason3_sub,
+        })
+        st.rerun()
+else:
+    st.info("6件登録済み（1枚の上限）。")
 
-        if outcome == "お断り":
-            reason = st.radio(
-                "お断り理由",
-                ["1_満床", "2_マンパワー", "3_院内専門科"],
-                format_func=lambda x: {
-                    "1_満床": "1. 病床の都合がつかない",
-                    "2_マンパワー": "2. マンパワーの問題",
-                    "3_院内専門科": "3. 院内専門科の都合・体制"
-                }[x],
-                key=f"reason_{i}"
-            )
-            case["reason"] = reason
-
-            if reason == "1_満床":
-                sub1 = st.selectbox(
-                    "病床理由の詳細",
-                    ["", "満床", "満床に準ずる状態", "ICU個室(感染等)満床", "熱傷患者受入不能"],
-                    key=f"r1sub_{i}"
-                )
-                case["reason1_sub"] = sub1
-
-            elif reason == "2_マンパワー":
-                sub2 = st.selectbox(
-                    "マンパワー理由の詳細",
-                    ["", "他患の処置・手術等で余力なし", "別の救急患者の搬入直前・直後"],
-                    key=f"r2sub_{i}"
-                )
-                case["reason2_sub"] = sub2
-
-            elif reason == "3_院内専門科":
-                dept3 = st.text_input("専門科名", key=f"dept3_{i}", placeholder="循環器")
-                sub3 = st.selectbox(
-                    "専門科理由の詳細",
-                    ["", "当該科手術中", "学会等で不在", "麻酔科対応不能"],
-                    key=f"r3sub_{i}"
-                )
-                case["reason3_dept"] = dept3
-                case["reason3_sub"] = sub3
-
-        cases.append(case)
-
+# ===== 出力 =====
 st.divider()
-
-if st.button("🖨️ 受付対応表を生成", type="primary", use_container_width=True):
-    with st.spinner("生成中..."):
-        result = render_hotline(header, cases)
-    st.image(result, use_container_width=True)
-    buf = io.BytesIO()
-    result.save(buf, format="JPEG", quality=95)
-    fname = f"hotline_{input_date.strftime('%Y%m%d')}_{shift}.jpg"
-    st.download_button("📥 保存", buf.getvalue(), fname, "image/jpeg")
+col_out1, col_out2 = st.columns(2)
+with col_out1:
+    if st.button("🖨️ 受付対応表を生成", type="primary", use_container_width=True,
+                 disabled=(len(st.session_state.hl_cases)==0)):
+        with st.spinner("生成中..."):
+            result = render_hotline(st.session_state.hl_header, st.session_state.hl_cases)
+        st.image(result, use_container_width=True)
+        buf = io.BytesIO()
+        result.save(buf, format="JPEG", quality=95)
+        fname = f"hotline_{input_date.strftime('%Y%m%d')}_{shift}.jpg"
+        st.download_button("📥 保存", buf.getvalue(), fname, "image/jpeg")
+with col_out2:
+    if st.button("🗑️ 全症例をリセット", use_container_width=True):
+        st.session_state.hl_cases = []
+        st.rerun()
