@@ -157,28 +157,28 @@ def render_hotline(header, cases, sheet_no=1):
         if outcome == "お断り":
             reason = case.get("reason","")
             if reason == "1_満床":
-                dm(175, yr1, r=12)   # "1." X=175（右に移動）
+                dm(160, yr1, r=12)
                 sub_map = {
-                    "満床": (238,yr1), "満床に準ずる状態": (380,yr1),
-                    "ICU個室(感染等)満床": (575,yr1), "熱傷患者受入不能": (790,yr1),
+                    "満床": (363,yr1), "満床に準ずる状態": (363,yr1),
+                    "ICU個室(感染等)満床": (558,yr1), "熱傷患者受入不能": (753,yr1),
                 }
                 if case.get("reason1_sub") in sub_map:
                     dm(*sub_map[case["reason1_sub"]], r=12)
             elif reason == "2_マンパワー":
-                dm(295, yr2, r=12)   # "2." X=295
+                dm(295, yr2, r=12)
                 sub_map2 = {
-                    "他患の処置・手術等で余力なし": (495,yr2),
-                    "別の救急患者の搬入直前・直後": (808,yr2),
+                    "他患の処置・手術等で余力なし": (482,yr2),
+                    "別の救急患者の搬入直前・直後": (722,yr2),
                 }
                 if case.get("reason2_sub") in sub_map2:
                     dm(*sub_map2[case["reason2_sub"]], r=12)
             elif reason == "3_院内専門科":
-                dm(303, yr3, r=12)   # "3." X=303（右に移動）
+                dm(305, yr3, r=12)
                 if case.get("reason3_dept"):
                     d.text((X(415), Y(yr3-20)), case["reason3_dept"].rstrip("科"), font=f22, fill="black")
                 sub_map3 = {
-                    "当該科手術中": (582,yr3), "学会等で不在": (740,yr3),
-                    "麻酔科対応不能": (798,yr3),
+                    "当該科手術中": (627,yr3), "学会等で不在": (762,yr3),
+                    "麻酔科対応不能": (897,yr3),
                 }
                 if case.get("reason3_sub") in sub_map3:
                     dm(*sub_map3[case["reason3_sub"]], r=12)
