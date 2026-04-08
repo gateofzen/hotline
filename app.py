@@ -129,7 +129,7 @@ def render_hotline(header, cases, sheet_no=1):
             d.text((X(168),Y(yg+li*30)),ln,font=f22,fill="black")
 
         outcome=case.get("outcome","")
-        tenki_map={"搬入":(195,yn2),"お断り":(270,yn2),"2次やかかりつけ医案内":(500,yn2),"患者都合":(790,yn2),"その他":(192,yt+214)}
+        tenki_map={"搬入":(183,yn2),"お断り":(270,yn2),"2次やかかりつけ医案内":(500,yn2),"患者都合":(755,yn2),"その他":(183,yt+168)}
         if outcome in tenki_map:
             cx,cy = tenki_map[outcome]
             draw_check(cx,cy)
