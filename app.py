@@ -82,7 +82,7 @@ def render_hotline(header, cases, sheet_no=1):
     no_str = str(sheet_no)
     bb = d.textbbox((0,0), no_str, font=f_no)
     tw = bb[2]-bb[0]; th = bb[3]-bb[1]
-    no_x = X(0 + (194-tw)//2)
+    no_x = X(104 + (194-104-tw)//2)
     no_y = Y(109 + (168-109-th)//2)
     d.text((no_x, no_y), no_str, font=f_no, fill="black")
 
@@ -129,12 +129,11 @@ def render_hotline(header, cases, sheet_no=1):
         if outcome=="お断り":
             reason=case.get("reason","")
             if reason=="1_満床":
-                # "1."テキスト中心X=197（スキャン確定）
-                dm(197,yr1,r=12)
+                dm(192,yr1,r=12)  # "1." X=175-210→中心192
                 sub_map={
-                    "満床・満床に準ずる状態":(362,yr1),   # □左辺X=344-345, 右辺X=380-381 → 中心362
-                    "ICU個室(感染等)満床":    (556,yr1),   # X=548-549,583 → 中心556
-                    "熱傷患者受入不能":       (782,yr1),   # X=774-789 → 中心782
+                    "満床・満床に準ずる状態":(459,yr1),  # □X=453-604→459
+                    "ICU個室(感染等)満床":    (635,yr1),  # □X=627-707→635
+                    "熱傷患者受入不能":       (785,yr1),  # □X=778-902→785
                 }
                 if case.get("reason1_sub") in sub_map: dm(*sub_map[case["reason1_sub"]],r=12)
             elif reason=="2_マンパワー":
@@ -146,9 +145,9 @@ def render_hotline(header, cases, sheet_no=1):
                 if case.get("reason3_dept"):
                     d.text((X(415),Y(yr3-20)),case["reason3_dept"].rstrip("科"),font=f22,fill="black")
                 sub_map3={
-                    "当該科手術中":(629,yr3),  # X=622-643 → 中心629
-                    "学会等で不在": (767,yr3),  # X=748-786 → 中心767
-                    "麻酔科対応不能":(1010,yr3), # X=952-1022 → 中心1010 ← 大幅右移動
+                    "当該科手術中": (578,yr3),  # □X=571-606→578
+                    "学会等で不在": (748,yr3),  # □X=741-795→748
+                    "麻酔科対応不能":(835,yr3),  # □X=828-936→835
                 }
                 if case.get("reason3_sub") in sub_map3: dm(*sub_map3[case["reason3_sub"]],r=12)
     return base
