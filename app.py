@@ -13,11 +13,8 @@ FONT_CANDIDATES = [
 def get_font(size):
     for path in FONT_CANDIDATES:
         if os.path.exists(path):
-            return ImageFont.truetype(path, size)
+            return ImageFont.truetype(path, max(8, size))
     return ImageFont.load_default()
-
-def draw_maru(draw, cx, cy, r=14):
-    draw.ellipse([cx-r, cy-r, cx+r, cy+r], outline="black", width=4)
 
 RESCUE_TEAMS = [
     "","中央","大通","桑園","山鼻","北","篠路","新光","東","栄","東苗穂",
@@ -27,78 +24,95 @@ RESCUE_TEAMS = [
 ]
 LEADERS   = ["前川","中嶋","森木","小舘","遠藤"]
 WEEKDAYS  = ["月","火","水","木","金","土","日"]
-BLOCK_TOPS = [168, 460, 749, 1039, 1329, 1619]
+# 各ブロック上端Y（1413×2000基準）
+BLOCK_TOPS_REF = [168, 460, 749, 1039, 1329, 1619]
 TIME_OPTIONS = [""] + [f"{h:02d}:{m:02d}" for h in range(24) for m in range(0,60,5)]
 
 def render_hotline(header, cases):
     base = Image.open("hotline.png").convert("RGB")
-    d = ImageDraw.Draw(base)
-    f36 = get_font(36)
-    f32 = get_font(32)
-    f28 = get_font(28)
-    f26 = get_font(26)
+    W, H = base.size
+    # 設計基準サイズからのスケール係数
+    sx = W / 1413
+    sy = H / 2000
+    s  = min(sx, sy)   # フォントは小さい方に合わせる
 
-    # ===== ヘッダー =====
+    def X(v): return int(v * sx)
+    def Y(v): return int(v * sy)
+    def R(v): return max(4, int(v * s))
+    def F(v): return get_font(max(8, int(v * s)))
+
+    def dm(cx, cy, r=14):
+        d.ellipse([X(cx)-R(r), Y(cy)-R(r), X(cx)+R(r), Y(cy)+R(r)], outline="black", width=max(2, R(4)))
+
+    d = ImageDraw.Draw(base)
+
+    # フォント（基準サイズ→スケール後）
+    f48 = F(48); f44 = F(44); f40 = F(40); f36 = F(36); f34 = F(34)
+
+    # ===== ヘッダー（基準Y=108-168）=====
     dt = header["date"]
     wd = WEEKDAYS[dt.weekday()]
-    d.text((280, 108), str(dt.year), font=f32, fill="black")
-    d.text((420, 108), str(dt.month), font=f32, fill="black")
-    d.text((485, 108), str(dt.day), font=f32, fill="black")
-    d.text((590, 108), wd, font=f32, fill="black")
-    # 日勤X=701 / 夜勤X=778（テンプレート解析済み）
+
+    # 年月日曜日（確認済み座標）
+    d.text((X(280), Y(108)), str(dt.year),  font=f44, fill="black")
+    d.text((X(420), Y(108)), str(dt.month), font=f44, fill="black")
+    d.text((X(485), Y(108)), str(dt.day),   font=f44, fill="black")
+    d.text((X(590), Y(108)), wd,            font=f44, fill="black")
+
+    # 日勤(X=701) / 夜勤(X=778)
     if header["shift"] == "日勤":
-        draw_maru(d, 701, 138, r=18)
+        dm(701, 138, r=22)
     else:
-        draw_maru(d, 778, 138, r=18)
-    d.text((1080, 108), header["leader"], font=f36, fill="black")
+        dm(778, 138, r=22)
+
+    # リーダー医師名
+    d.text((X(1080), Y(108)), header["leader"], font=f48, fill="black")
 
     # ===== 症例ブロック =====
     for i, case in enumerate(cases):
         if i >= 6: break
-        yt  = BLOCK_TOPS[i]
-        yn  = yt - 8     # 時刻/救急隊名行（確認済み）
+        yt  = BLOCK_TOPS_REF[i]
+        yn  = yt - 8     # No.+時刻行（確認済み）
         yc  = yt + 22    # 症例行（確認済み）
         yg  = yt + 60    # 概略
         yn2 = yt + 131   # 転帰行
-        yr1 = yt + 240   # 理由1 Y
-        yr2 = yt + 260   # 理由2 Y
-        yr3 = yt + 280   # 理由3 Y
+        yr1 = yt + 240; yr2 = yt + 260; yr3 = yt + 280
 
         # 時刻
         if case.get("time"):
-            d.text((295, yn), case["time"], font=f32, fill="black")
+            d.text((X(295), Y(yn)), case["time"], font=f44, fill="black")
 
         # 依頼回数
         if case.get("req_count") == "初回":
-            draw_maru(d, 620, yn+14, r=16)
+            dm(620, yn+16, r=18)
         else:
             num = (case.get("req_count") or "").replace("回目","").replace("回","")
             if num:
-                d.text((718, yn), num, font=f32, fill="black")
+                d.text((X(718), Y(yn)), num, font=f44, fill="black")
 
         # 依頼先
         if case.get("team"):
-            d.text((970, yn), case["team"], font=f32, fill="black")
+            d.text((X(970), Y(yn)), case["team"], font=f40, fill="black")
 
         # 年齢
         if case.get("age"):
-            d.text((235, yc), str(case["age"]), font=f32, fill="black")
+            d.text((X(235), Y(yc)), str(case["age"]), font=f44, fill="black")
 
-        # 性別（確認済み: M X=505, F X=548, Y=yc+22）
+        # 性別（確認済み）
         if case.get("gender") == "M":
-            draw_maru(d, 505, yc+22, r=16)
+            dm(505, yc+22, r=18)
         elif case.get("gender") == "F":
-            draw_maru(d, 548, yc+22, r=16)
+            dm(548, yc+22, r=18)
 
-        # 概略（折返し幅32文字）
+        # 概略
         lines = []
         line = ""
         for ch in (case.get("summary") or ""):
             line += ch
-            if len(line) >= 32: lines.append(line); line = ""
+            if len(line) >= 30: lines.append(line); line = ""
         if line: lines.append(line)
         for li, ln in enumerate(lines[:2]):
-            d.text((168, yg + li*30), ln, font=f26, fill="black")
+            d.text((X(168), Y(yg + li*36)), ln, font=f34, fill="black")
 
         # 転帰
         outcome = case.get("outcome","")
@@ -110,37 +124,37 @@ def render_hotline(header, cases):
             "その他":             (192, yt+214),
         }
         if outcome in tenki_map:
-            draw_maru(d, *tenki_map[outcome], r=14)
+            dm(*tenki_map[outcome], r=16)
 
         # お断り理由
         if outcome == "お断り":
             reason = case.get("reason","")
             if reason == "1_満床":
-                draw_maru(d, 215, yr1, r=12)
+                dm(215, yr1, r=13)
                 sub_map = {
                     "満床": (263,yr1), "満床に準ずる状態": (405,yr1),
                     "ICU個室(感染等)満床": (600,yr1), "熱傷患者受入不能": (815,yr1),
                 }
                 if case.get("reason1_sub") in sub_map:
-                    draw_maru(d, *sub_map[case["reason1_sub"]], r=11)
+                    dm(*sub_map[case["reason1_sub"]], r=12)
             elif reason == "2_マンパワー":
-                draw_maru(d, 215, yr2, r=12)
+                dm(215, yr2, r=13)
                 sub_map2 = {
                     "他患の処置・手術等で余力なし": (398,yr2),
                     "別の救急患者の搬入直前・直後": (658,yr2),
                 }
                 if case.get("reason2_sub") in sub_map2:
-                    draw_maru(d, *sub_map2[case["reason2_sub"]], r=11)
+                    dm(*sub_map2[case["reason2_sub"]], r=12)
             elif reason == "3_院内専門科":
-                draw_maru(d, 215, yr3, r=12)
+                dm(215, yr3, r=13)
                 if case.get("reason3_dept"):
-                    d.text((328, yr3-14), case["reason3_dept"].rstrip("科"), font=f28, fill="black")
+                    d.text((X(328), Y(yr3-14)), case["reason3_dept"].rstrip("科"), font=f36, fill="black")
                 sub_map3 = {
                     "当該科手術中": (597,yr3), "学会等で不在": (752,yr3),
                     "麻酔科対応不能": (907,yr3),
                 }
                 if case.get("reason3_sub") in sub_map3:
-                    draw_maru(d, *sub_map3[case["reason3_sub"]], r=11)
+                    dm(*sub_map3[case["reason3_sub"]], r=12)
     return base
 
 # ===== セッション状態 =====
