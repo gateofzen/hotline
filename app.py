@@ -83,7 +83,7 @@ def render_hotline(header, cases, sheet_no=1):
     bb = d.textbbox((0,0), no_str, font=f_no)
     tw = bb[2]-bb[0]; th = bb[3]-bb[1]
     no_x = X(104 + (194-104-tw)//2)
-    no_y = Y(109 + (168-109-th)//2)
+    no_y = Y(109 + (168-109-th)//3)   # //3 で上寄り
     d.text((no_x, no_y), no_str, font=f_no, fill="black")
 
     # ===== ヘッダー =====
@@ -129,11 +129,11 @@ def render_hotline(header, cases, sheet_no=1):
         if outcome=="お断り":
             reason=case.get("reason","")
             if reason=="1_満床":
-                dm(192,yr1,r=12)  # "1." X=175-210→中心192
+                dm(334,yr1,r=12)  # "1." center X=334（スキャン確定）
                 sub_map={
-                    "満床・満床に準ずる状態":(459,yr1),  # □X=453-604→459
-                    "ICU個室(感染等)満床":    (635,yr1),  # □X=627-707→635
-                    "熱傷患者受入不能":       (785,yr1),  # □X=778-902→785
+                    "満床・満床に準ずる状態":(458,yr1),  # □ X=453-463
+                    "ICU個室(感染等)満床":    (632,yr1),  # □ X=627-638
+                    "熱傷患者受入不能":       (784,yr1),  # □ X=778-790
                 }
                 if case.get("reason1_sub") in sub_map: dm(*sub_map[case["reason1_sub"]],r=12)
             elif reason=="2_マンパワー":
@@ -141,13 +141,13 @@ def render_hotline(header, cases, sheet_no=1):
                 sub_map2={"他患の処置・手術等で余力なし":(465,yr2),"別の救急患者の搬入直前・直後":(735,yr2)}
                 if case.get("reason2_sub") in sub_map2: dm(*sub_map2[case["reason2_sub"]],r=12)
             elif reason=="3_院内専門科":
-                dm(289,yr3,r=12)
+                dm(326,yr3,r=12)  # "3." center X=326（スキャン確定）
                 if case.get("reason3_dept"):
                     d.text((X(415),Y(yr3-20)),case["reason3_dept"].rstrip("科"),font=f22,fill="black")
                 sub_map3={
-                    "当該科手術中": (578,yr3),  # □X=571-606→578
-                    "学会等で不在": (748,yr3),  # □X=741-795→748
-                    "麻酔科対応不能":(835,yr3),  # □X=828-936→835
+                    "当該科手術中":(599,yr3),  # □ X=592-606
+                    "学会等で不在":(749,yr3),  # □ X=741-757
+                    "麻酔科対応不能":(836,yr3), # □ X=828-845
                 }
                 if case.get("reason3_sub") in sub_map3: dm(*sub_map3[case["reason3_sub"]],r=12)
     return base
