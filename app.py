@@ -74,6 +74,12 @@ def render_hotline(header, cases, sheet_no=1):
     def dm(cx,cy,r=14):
         d.ellipse([X(cx)-R(r),Y(cy)-R(r),X(cx)+R(r),Y(cy)+R(r)],outline="black",width=max(2,R(4)))
 
+    def draw_check(cx, cy):
+        """□の中にチェックマークを描画"""
+        s = R(10)
+        x, y = X(cx), Y(cy)
+        d.line([(x-s, y), (x-s//3, y+s), (x+s, y-s)], fill="black", width=max(2,R(3)))
+
     d = ImageDraw.Draw(base)
     f34=F(34); f30=F(30); f26=F(26); f22=F(22)
 
@@ -136,14 +142,12 @@ def render_hotline(header, cases, sheet_no=1):
                     "熱傷患者受入不能":       (948,yr1),  # cluster[27]の左 X=948
                 }
                 if case.get("reason1_sub") in sub_map:
-                    cx,cy = sub_map[case["reason1_sub"]]
-                    d.text((X(cx-10),Y(cy-14)),"✔",font=f28,fill="black")
+                    draw_check(*sub_map[case["reason1_sub"]])
             elif reason=="2_マンパワー":
                 dm(295,yr2,r=12)
                 sub_map2={"他患の処置・手術等で余力なし":(465,yr2),"別の救急患者の搬入直前・直後":(735,yr2)}
                 if case.get("reason2_sub") in sub_map2:
-                    cx,cy = sub_map2[case["reason2_sub"]]
-                    d.text((X(cx-10),Y(cy-14)),"✔",font=f28,fill="black")
+                    draw_check(*sub_map2[case["reason2_sub"]])
             elif reason=="3_院内専門科":
                 dm(292,yr3,r=12)  # cluster[0] X=292
                 if case.get("reason3_dept"):
@@ -154,8 +158,7 @@ def render_hotline(header, cases, sheet_no=1):
                     "麻酔科対応不能":(960,yr3), # cluster[24-25]間・中央右 X=960
                 }
                 if case.get("reason3_sub") in sub_map3:
-                    cx,cy = sub_map3[case["reason3_sub"]]
-                    d.text((X(cx-10),Y(cy-14)),"✔",font=f28,fill="black")
+                    draw_check(*sub_map3[case["reason3_sub"]])
     return base
 
 # ===== セッション状態 =====
