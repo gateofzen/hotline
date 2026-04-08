@@ -95,10 +95,10 @@ def render_hotline(header, cases, sheet_no=1):
     # ===== ヘッダー =====
     dt = header["date"] if isinstance(header["date"],date) else date.fromisoformat(str(header["date"]))
     wd = WEEKDAYS[dt.weekday()]
-    d.text((X(260),Y(108)),str(dt.year),font=f30,fill="black")
-    d.text((X(420),Y(108)),str(dt.month),font=f30,fill="black")
-    d.text((X(485),Y(108)),str(dt.day),font=f30,fill="black")
-    d.text((X(590),Y(108)),wd,font=f30,fill="black")
+    d.text((X(260),Y(114)),str(dt.year),font=f30,fill="black")
+    d.text((X(420),Y(114)),str(dt.month),font=f30,fill="black")
+    d.text((X(485),Y(114)),str(dt.day),font=f30,fill="black")
+    d.text((X(590),Y(114)),wd,font=f30,fill="black")
     shift = header["shift"]
     if shift=="日勤": dm(701,138,r=18)
     else: dm(778,138,r=18)
@@ -111,14 +111,14 @@ def render_hotline(header, cases, sheet_no=1):
         yr1=yt+222; yr2=yt+247; yr3=yt+276
 
         if case.get("time"): d.text((X(300),Y(yn)),case["time"],font=f26,fill="black")
-        if case.get("req_count")=="初回": dm(620,yn+14,r=16)
+        if case.get("req_count")=="初回": dm(620,yn+20,r=16)
         else:
             num=(case.get("req_count") or "").replace("回目","").replace("回","")
             if num: d.text((X(718),Y(yn)),num,font=f26,fill="black")
         if case.get("team"): d.text((X(970),Y(yn)),case["team"],font=f26,fill="black")
         if case.get("age"): d.text((X(235),Y(yc)),str(case["age"]),font=f26,fill="black")
-        if case.get("gender")=="M": dm(432,yc+20,r=14)
-        elif case.get("gender")=="F": dm(500,yc+20,r=14)
+        if case.get("gender")=="M": dm(432,yc+26,r=14)
+        elif case.get("gender")=="F": dm(500,yc+26,r=14)
 
         lines=[]; line=""
         for ch in (case.get("summary") or ""):
