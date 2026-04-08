@@ -123,7 +123,7 @@ def render_hotline(header, cases):
 
         # 性別（スキャン確定: M=475, F=512）
         if case.get("gender") == "M":
-            dm(460, yc+20, r=14)
+            dm(448, yc+20, r=14)
         elif case.get("gender") == "F":
             dm(512, yc+20, r=14)
 
@@ -173,8 +173,8 @@ def render_hotline(header, cases):
                 if case.get("reason3_dept"):
                     d.text((X(415), Y(yr3-20)), case["reason3_dept"].rstrip("科"), font=f22, fill="black")
                 sub_map3 = {
-                    "当該科手術中": (553,yr3), "学会等で不在": (700,yr3),
-                    "麻酔科対応不能": (845,yr3),
+                    "当該科手術中": (570,yr3), "学会等で不在": (717,yr3),
+                    "麻酔科対応不能": (862,yr3),
                 }
                 if case.get("reason3_sub") in sub_map3:
                     dm(*sub_map3[case["reason3_sub"]], r=12)
