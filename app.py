@@ -169,6 +169,8 @@ if "hl_cases" not in st.session_state:
     st.session_state.hl_cases = load_cases()
 if "hl_header" not in st.session_state:
     st.session_state.hl_header = {"date": date.today().isoformat(), "leader": "前川"}
+if "hl_images" not in st.session_state:
+    st.session_state.hl_images = []
 
 # ===== ヘッダー =====
 st.subheader("📋 基本情報")
@@ -360,6 +362,7 @@ with oc1:
     if st.button("🖨️ 受付対応表を生成",type="primary",use_container_width=True,
                  disabled=(len(st.session_state.hl_cases)==0)):
         date_str = input_date.strftime('%Y%m%d')
+        all_images = []  # PDF・Gmail用
 
         for shift_label, shift_cases in [("日勤", nisshin), ("夜勤", yashin)]:
             if not shift_cases:
@@ -375,12 +378,74 @@ with oc1:
                 st.image(result, use_container_width=True)
                 buf=io.BytesIO()
                 result.save(buf,format="JPEG",quality=95)
+                fname = f"hotline_{date_str}_{shift_label}_No{sh+1}.jpg"
+                all_images.append((fname, buf.getvalue()))
                 st.download_button(
                     f"📥 {shift_label} No.{sh+1} 保存", buf.getvalue(),
-                    f"hotline_{date_str}_{shift_label}_No{sh+1}.jpg","image/jpeg",
+                    fname, "image/jpeg",
                     key=f"dl_{shift_label}_{sh}")
+
+        # セッションに保存
+        st.session_state.hl_images = all_images
+        if all_images:
+            st.success(f"✅ {len(all_images)}枚の受付対応表を生成しました。")
+
+    # PDF一括保存
+    if st.session_state.get("hl_images"):
+        try:
+            from reportlab.pdfgen import canvas as rl_canvas
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.utils import ImageReader
+            from PIL import Image as PILImage
+
+            A4_W, A4_H = A4
+            MARGIN = 28
+            avail_w = A4_W - 2*MARGIN
+            avail_h = A4_H - 2*MARGIN
+
+            pdf_buf = io.BytesIO()
+            c = rl_canvas.Canvas(pdf_buf, pagesize=A4)
+            for _, img_bytes in st.session_state.hl_images:
+                img = PILImage.open(io.BytesIO(img_bytes)).convert("RGB")
+                iw, ih = img.size
+                scale = min(avail_w/iw, avail_h/ih)
+                pw, ph = iw*scale, ih*scale
+                x = MARGIN + (avail_w - pw) / 2
+                y = MARGIN + (avail_h - ph) / 2
+                img_buf2 = io.BytesIO()
+                img.save(img_buf2, format="JPEG", quality=95)
+                img_buf2.seek(0)
+                c.drawImage(ImageReader(img_buf2), x, y, width=pw, height=ph)
+                c.showPage()
+            c.save()
+            pdf_buf.seek(0)
+            pdf_name = f"hotline_{input_date.strftime('%Y%m%d')}.pdf"
+            st.download_button(
+                "📄 全受付対応表をPDFで保存（A4印刷用）",
+                pdf_buf.getvalue(), pdf_name, "application/pdf",
+                use_container_width=True, type="primary",
+                key="hl_pdf_dl"
+            )
+        except Exception as e:
+            st.error(f"PDF生成エラー: {e}")
+
+    # Gmail mailto
+    if st.session_state.get("hl_images"):
+        import urllib.parse as _up
+        _subject = f"ホットライン受付対応表 {input_date.strftime('%Y/%m/%d')} {leader}"
+        _body = "ホットライン受付対応表を添付します。\n\n"
+        for fname, _ in st.session_state.hl_images:
+            _body += f"・{fname}\n"
+        _body += "\n※PDFをダウンロードして添付してください。"
+        _mailto = "mailto:?subject=" + _up.quote(_subject) + "&body=" + _up.quote(_body)
+        st.markdown(
+            f'<a href="{_mailto}" style="display:block;text-align:center;background:#1a73e8;color:white;padding:10px;border-radius:6px;text-decoration:none;font-size:14px;margin-top:8px">📧 Gmailで送信（宛名未設定）</a>',
+            unsafe_allow_html=True
+        )
+
 with oc2:
     if st.button("🗑️ 全症例をリセット",use_container_width=True):
         st.session_state.hl_cases=[]
+        st.session_state.hl_images=[]
         save_cases([])
         st.rerun()
