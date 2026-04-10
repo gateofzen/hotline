@@ -53,6 +53,20 @@ def time_to_shift(time_str):
     except:
         return "夜勤"
 
+def get_shift_date(case_date_str, time_str):
+    """症例の時刻が00:00-08:30の場合は前日夜勤扱い → shift_date を返す
+    case_date_str: 'YYYY-MM-DD', time_str: 'HH:MM'"""
+    try:
+        from datetime import date as _d, timedelta
+        h, m = map(int, time_str.split(":"))
+        minutes = h * 60 + m
+        base = _d.fromisoformat(case_date_str)
+        if minutes < 8*60+30:  # 00:00-08:30 → 前日夜勤
+            return (base - timedelta(days=1)).isoformat()
+        return case_date_str
+    except:
+        return case_date_str
+
 RESCUE_TEAMS = [
     "","中央","大通","桑園","山鼻","北","篠路","新光","東","栄","東苗穂",
     "白石","菊水","厚別","厚別西","豊平","西岡","平岸","清田","南","定山渓",
@@ -189,8 +203,12 @@ cases = st.session_state.hl_cases
 n = len(cases)
 
 # 日勤・夜勤で件数集計
+# 入力日付とtime_to_shiftで日勤/夜勤を判定
+# 00:00-08:30は夜勤だが、前日夜勤として同じ夜勤グループに含める
 nisshin = [c for c in cases if time_to_shift(c.get("time","")) == "日勤"]
 yashin  = [c for c in cases if time_to_shift(c.get("time","")) == "夜勤"]
+# 夜勤の日付判定：00:00-08:30は前日のshift_dateになるが、
+# 同じ出力シートにまとめるため表示上はそのまま夜勤として扱う
 st.markdown(f"**🚑 登録済み: {n}件（日勤 {len(nisshin)}件 / 夜勤 {len(yashin)}件）**")
 
 # 編集モード管理
@@ -355,6 +373,36 @@ if st.button("✅ この症例を登録",type="primary",use_container_width=True
     save_cases(st.session_state.hl_cases)
     st.rerun()
 
+# ===== 印刷ウィジェット =====
+def hl_make_print_widget(pil_img, key="print"):
+    import base64
+    buf = io.BytesIO()
+    pil_img.save(buf, format="JPEG", quality=95)
+    b64 = base64.b64encode(buf.getvalue()).decode()
+    html = f"""<!DOCTYPE html>
+<html><head><style>
+  body{{margin:0;padding:0;background:transparent;font-family:sans-serif}}
+  @media screen{{
+    .img-wrap{{display:none}}
+    .btn{{display:block;width:100%;height:38px;padding:0 14px;box-sizing:border-box;
+      background:transparent;color:inherit;border:1px solid rgba(49,51,63,0.2);
+      border-radius:4px;font-size:0.875rem;cursor:pointer}}
+    .btn:hover{{border-color:#f63366;color:#f63366}}
+    @media(prefers-color-scheme:dark){{.btn{{border-color:rgba(250,250,250,0.2);color:#fff}}}}
+  }}
+  @media print{{
+    .btn{{display:none}}
+    .img-wrap{{display:block}}
+    @page{{size:A4;margin:0}}
+    html,body{{height:100%;overflow:hidden;margin:0;padding:0}}
+    img{{width:100%;height:auto;max-height:100vh;display:block}}
+  }}
+</style></head><body>
+<div class="img-wrap"><img src="data:image/jpeg;base64,{b64}"></div>
+<button class="btn" onclick="window.print()">🖨️ 印刷</button>
+</body></html>"""
+    return html
+
 # ===== 出力（日勤・夜勤を別紙）=====
 st.divider()
 oc1,oc2=st.columns(2)
@@ -362,14 +410,22 @@ with oc1:
     if st.button("🖨️ 受付対応表を生成",type="primary",use_container_width=True,
                  disabled=(len(st.session_state.hl_cases)==0)):
         date_str = input_date.strftime('%Y%m%d')
-        all_images = []  # PDF・Gmail用
+        all_images = []
 
         for shift_label, shift_cases in [("日勤", nisshin), ("夜勤", yashin)]:
             if not shift_cases:
                 continue
             st.write(f"### 📄 {shift_label}（{len(shift_cases)}件）")
             n_sh = max(1,(len(shift_cases)+5)//6)
-            header_for_render = {"date": input_date.isoformat(), "shift": shift_label, "leader": leader}
+            # 夜勤で最初の症例が00:00-08:30なら前日日付で出力
+            _first_time = shift_cases[0].get("time","") if shift_cases else ""
+            _h = int(_first_time.split(":")[0]) if _first_time and ":" in _first_time else 12
+            if shift_label == "夜勤" and _h < 8 or (shift_label == "夜勤" and _h == 8 and int(_first_time.split(":")[1]) < 30):
+                from datetime import timedelta
+                _header_date = (input_date - timedelta(days=1)).isoformat()
+            else:
+                _header_date = input_date.isoformat()
+            header_for_render = {"date": _header_date, "shift": shift_label, "leader": leader}
             for sh in range(n_sh):
                 sheet_cases = shift_cases[sh*6:sh*6+6]
                 with st.spinner(f"{shift_label} No.{sh+1} 生成中..."):
@@ -380,12 +436,10 @@ with oc1:
                 result.save(buf,format="JPEG",quality=95)
                 fname = f"hotline_{date_str}_{shift_label}_No{sh+1}.jpg"
                 all_images.append((fname, buf.getvalue()))
-                st.download_button(
-                    f"📥 {shift_label} No.{sh+1} 保存", buf.getvalue(),
-                    fname, "image/jpeg",
-                    key=f"dl_{shift_label}_{sh}")
+                # 印刷ボタン
+                import streamlit.components.v1 as _comp
+                _comp.html(hl_make_print_widget(result, f"hl_print_{shift_label}_{sh}"), height=38)
 
-        # セッションに保存
         st.session_state.hl_images = all_images
         if all_images:
             st.success(f"✅ {len(all_images)}枚の受付対応表を生成しました。")
@@ -428,20 +482,6 @@ with oc1:
             )
         except Exception as e:
             st.error(f"PDF生成エラー: {e}")
-
-    # Gmail mailto
-    if st.session_state.get("hl_images"):
-        import urllib.parse as _up
-        _subject = f"ホットライン受付対応表 {input_date.strftime('%Y/%m/%d')} {leader}"
-        _body = "ホットライン受付対応表を添付します。\n\n"
-        for fname, _ in st.session_state.hl_images:
-            _body += f"・{fname}\n"
-        _body += "\n※PDFをダウンロードして添付してください。"
-        _mailto = "mailto:?subject=" + _up.quote(_subject) + "&body=" + _up.quote(_body)
-        st.markdown(
-            f'<a href="{_mailto}" style="display:block;text-align:center;background:#1a73e8;color:white;padding:10px;border-radius:6px;text-decoration:none;font-size:14px;margin-top:8px">📧 Gmailで送信（宛名未設定）</a>',
-            unsafe_allow_html=True
-        )
 
 with oc2:
     if st.button("🗑️ 全症例をリセット",use_container_width=True):
