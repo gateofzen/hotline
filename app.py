@@ -505,7 +505,7 @@ with oc2:
 # ===== 勤務表リーダー設定 =====
 with st.expander("📅 勤務表リーダー設定", expanded=False):
     from datetime import timezone as _stz2, timedelta as _std2
-    from leader_schedule import parse_schedule_pdf, save_schedule, load_schedule
+    from leader_schedule import parse_kinmuhyo_pdf as parse_schedule_pdf, save_schedule, load_schedule
     _now_hl = __import__('datetime').datetime.now(_stz2(_std2(hours=9)))
     _sh_hl = "日勤" if 8*60+30 <= _now_hl.hour*60+_now_hl.minute < 16*60+30 else "夜勤"
     _ld_hl = get_leader(input_date, _sh_hl)
@@ -518,13 +518,13 @@ with st.expander("📅 勤務表リーダー設定", expanded=False):
                                     label_visibility="collapsed")
     if pdf_file_hl:
         with st.spinner("勤務表を解析中..."):
-            result_hl, msg_hl = parse_schedule_pdf(pdf_file_hl.read())
+            result_hl = parse_schedule_pdf(pdf_file_hl.read())
         if result_hl:
-            sched_hl = load_schedule()
-            sched_hl.update(result_hl)
-            save_schedule(sched_hl)
-            st.success(f"✅ {msg_hl}")
+            sched_hl=load_schedule(); months_hl=set(k[0] for k in result_hl.keys())
+            sched_hl={k:v for k,v in sched_hl.items() if k[0] not in months_hl}
+            sched_hl.update(result_hl); save_schedule(sched_hl)
+            st.success(f"✅ {len(result_hl)}日分を更新しました"); st.rerun()
         else:
-            st.error(f"❌ {msg_hl}")
+            st.error("⚠️ 解析できませんでした")
     st.caption("PDFアップロード後に内容を確認・修正できます")
     schedule_editor_widget("hotline_sched")
