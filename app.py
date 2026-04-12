@@ -1,4 +1,5 @@
 import streamlit as st
+from leader_schedule import get_leader, schedule_editor_widget
 import streamlit.components.v1 as components
 from PIL import Image, ImageDraw, ImageFont
 import io, os, json
@@ -199,8 +200,13 @@ with c1:
     st.session_state.hl_date_set = True
     input_date = st.date_input("日付", value=date.fromisoformat(str(saved_date)))
 with c2:
-    leader = st.selectbox("リーダー医師名", LEADERS,
-                          index=LEADERS.index(st.session_state.hl_header.get("leader","前川")))
+    # 入力日付とその時刻（現在時刻）からデフォルトリーダーを決定
+    from datetime import timezone as _hltz, timedelta as _hltd
+    _hl_jst = __import__('datetime').datetime.now(_hltz(_hltd(hours=9)))
+    _hl_shift_tmp = "日勤" if 8*60+30 <= _hl_jst.hour*60+_hl_jst.minute < 16*60+30 else "夜勤"
+    _hl_leader_def = get_leader(input_date, _hl_shift_tmp)
+    _hl_def_idx = LEADERS.index(_hl_leader_def) if _hl_leader_def in LEADERS else LEADERS.index(st.session_state.hl_header.get("leader","前川")) if st.session_state.hl_header.get("leader") in LEADERS else 0
+    leader = st.selectbox("リーダー医師名", LEADERS, index=_hl_def_idx)
 st.session_state.hl_header = {"date": input_date.isoformat(), "leader": leader}
 
 # ===== 登録済み一覧 =====
@@ -495,3 +501,30 @@ with oc2:
         st.session_state.hl_images=[]
         save_cases([])
         st.rerun()
+
+# ===== 勤務表リーダー設定 =====
+with st.expander("📅 勤務表リーダー設定", expanded=False):
+    from datetime import timezone as _stz2, timedelta as _std2
+    from leader_schedule import parse_schedule_pdf, save_schedule, load_schedule
+    _now_hl = __import__('datetime').datetime.now(_stz2(_std2(hours=9)))
+    _sh_hl = "日勤" if 8*60+30 <= _now_hl.hour*60+_now_hl.minute < 16*60+30 else "夜勤"
+    _ld_hl = get_leader(input_date, _sh_hl)
+    if _ld_hl:
+        st.info(f"👤 {input_date.month}/{input_date.day} {_sh_hl}のリーダー: **{_ld_hl}**")
+    else:
+        st.warning(f"⚠️ {input_date.month}/{input_date.day} {_sh_hl}のリーダーが未設定です")
+    pdf_file_hl = st.file_uploader("📄 勤務表PDFをアップロード（毎月20日頃に更新）",
+                                    type=["pdf"], key="sched_pdf_hl",
+                                    label_visibility="collapsed")
+    if pdf_file_hl:
+        with st.spinner("勤務表を解析中..."):
+            result_hl, msg_hl = parse_schedule_pdf(pdf_file_hl.read())
+        if result_hl:
+            sched_hl = load_schedule()
+            sched_hl.update(result_hl)
+            save_schedule(sched_hl)
+            st.success(f"✅ {msg_hl}")
+        else:
+            st.error(f"❌ {msg_hl}")
+    st.caption("PDFアップロード後に内容を確認・修正できます")
+    schedule_editor_widget("hotline_sched")
