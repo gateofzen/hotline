@@ -190,7 +190,13 @@ if "hl_images" not in st.session_state:
 st.subheader("📋 基本情報")
 c1,c2 = st.columns(2)
 with c1:
-    saved_date = st.session_state.hl_header.get("date", date.today().isoformat())
+    # 日付: セッションに保存済みならそれを使う、なければ今日
+    _today = date.today()
+    saved_date = st.session_state.hl_header.get("date", _today.isoformat())
+    # セッションの日付が今日と異なる場合（別日にセッションが残っていた）は今日にリセット
+    if saved_date != _today.isoformat() and "hl_date_set" not in st.session_state:
+        saved_date = _today.isoformat()
+    st.session_state.hl_date_set = True
     input_date = st.date_input("日付", value=date.fromisoformat(str(saved_date)))
 with c2:
     leader = st.selectbox("リーダー医師名", LEADERS,
