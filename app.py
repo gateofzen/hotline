@@ -79,7 +79,51 @@ WEEKDAYS  = ["月","火","水","木","金","土","日"]
 BLOCK_TOPS = [168, 460, 749, 1039, 1329, 1619]
 TIME_OPTIONS = [""] + [f"{h:02d}:{m:02d}" for h in range(24) for m in range(0,60,5)]
 
-def render_hotline(header, cases, sheet_no=1):
+def render_hotline_norequest(header):
+    """搬送依頼なしシートを生成"""
+    base = Image.open("hotline.png").convert("RGB")
+    W, H = base.size
+    sx=W/1413; sy=H/2000; s=min(sx,sy)
+    def X(v): return int(v*sx)
+    def Y(v): return int(v*sy)
+    def R(v): return max(4,int(v*s))
+    def F(v): return get_font(max(8,int(v*s)))
+    def dm(cx,cy,r=14):
+        d.ellipse([X(cx)-R(r),Y(cy)-R(r),X(cx)+R(r),Y(cy)+R(r)],outline="black",width=max(2,R(4)))
+
+    d = ImageDraw.Draw(base)
+    f34=F(34); f30=F(30)
+
+    # No.
+    f_no = F(42)
+    no_str = "1"
+    bb = d.textbbox((0,0), no_str, font=f_no)
+    tw = bb[2]-bb[0]
+    d.text((X(104 + (194-104-tw)//2 + 8), Y(109)), no_str, font=f_no, fill="black")
+
+    # ヘッダー
+    dt = header["date"] if isinstance(header["date"], date) else date.fromisoformat(str(header["date"]))
+    wd = WEEKDAYS[dt.weekday()]
+    d.text((X(260),Y(114)), str(dt.year),  font=f30, fill="black")
+    d.text((X(420),Y(114)), str(dt.month), font=f30, fill="black")
+    d.text((X(485),Y(114)), str(dt.day),   font=f30, fill="black")
+    d.text((X(590),Y(114)), wd,            font=f30, fill="black")
+    if header["shift"] == "日勤": dm(701,138,r=18)
+    else: dm(778,138,r=18)
+    d.text((X(1080),Y(106)), header["leader"], font=f34, fill="black")
+
+    # 「搬送依頼なし」を中央に大きく描画
+    f_big = get_font(int(110 * s))
+    msg = "搬送依頼なし"
+    bb = d.textbbox((0,0), msg, font=f_big)
+    tw, th = bb[2]-bb[0], bb[3]-bb[1]
+    mx = (W - tw) // 2
+    my = (H - th) // 2
+    # 薄いグレーで描画（印刷時に目立ちすぎないよう）
+    d.text((mx+3, my+3), msg, font=f_big, fill=(200,200,200))
+    d.text((mx, my), msg, font=f_big, fill=(140,140,140))
+
+    return base
     base = Image.open("hotline.png").convert("RGB")
     W, H = base.size
     sx=W/1413; sy=H/2000; s=min(sx,sy)
@@ -425,19 +469,32 @@ with oc1:
         all_images = []
 
         for shift_label, shift_cases in [("日勤", nisshin), ("夜勤", yashin)]:
+            _header_date = input_date.isoformat()
+            if shift_cases:
+                # 夜勤で00:00-08:30なら前日日付
+                _first_time = shift_cases[0].get("time","")
+                _h = int(_first_time.split(":")[0]) if _first_time and ":" in _first_time else 12
+                if shift_label == "夜勤" and (_h < 8 or (_h == 8 and int(_first_time.split(":")[1]) < 30)):
+                    from datetime import timedelta
+                    _header_date = (input_date - timedelta(days=1)).isoformat()
+
+            header_for_render = {"date": _header_date, "shift": shift_label, "leader": leader}
+
             if not shift_cases:
+                # 搬送依頼なしシート
+                st.write(f"### 📄 {shift_label}（0件）")
+                with st.spinner(f"{shift_label} 搬送依頼なしシート生成中..."):
+                    result = render_hotline_norequest(header_for_render)
+                st.image(result, use_container_width=True)
+                buf=io.BytesIO(); result.save(buf,format="JPEG",quality=95)
+                fname = f"hotline_{date_str}_{shift_label}_依頼なし.jpg"
+                all_images.append((fname, buf.getvalue()))
+                import streamlit.components.v1 as _comp
+                _comp.html(hl_make_print_widget(result, f"hl_print_{shift_label}_none"), height=38)
                 continue
+
             st.write(f"### 📄 {shift_label}（{len(shift_cases)}件）")
             n_sh = max(1,(len(shift_cases)+5)//6)
-            # 夜勤で最初の症例が00:00-08:30なら前日日付で出力
-            _first_time = shift_cases[0].get("time","") if shift_cases else ""
-            _h = int(_first_time.split(":")[0]) if _first_time and ":" in _first_time else 12
-            if shift_label == "夜勤" and _h < 8 or (shift_label == "夜勤" and _h == 8 and int(_first_time.split(":")[1]) < 30):
-                from datetime import timedelta
-                _header_date = (input_date - timedelta(days=1)).isoformat()
-            else:
-                _header_date = input_date.isoformat()
-            header_for_render = {"date": _header_date, "shift": shift_label, "leader": leader}
             for sh in range(n_sh):
                 sheet_cases = shift_cases[sh*6:sh*6+6]
                 with st.spinner(f"{shift_label} No.{sh+1} 生成中..."):
@@ -448,7 +505,6 @@ with oc1:
                 result.save(buf,format="JPEG",quality=95)
                 fname = f"hotline_{date_str}_{shift_label}_No{sh+1}.jpg"
                 all_images.append((fname, buf.getvalue()))
-                # 印刷ボタン
                 import streamlit.components.v1 as _comp
                 _comp.html(hl_make_print_widget(result, f"hl_print_{shift_label}_{sh}"), height=38)
 
