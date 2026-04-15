@@ -91,6 +91,14 @@ def render_hotline_norequest(header):
     def dm(cx,cy,r=14):
         d.ellipse([X(cx)-R(r),Y(cy)-R(r),X(cx)+R(r),Y(cy)+R(r)],outline="black",width=max(2,R(4)))
 
+    # ヘッダー行より下をグレーオーバーレイ
+    import numpy as np
+    arr = np.array(base).astype(float)
+    header_bottom_y = Y(170)  # ヘッダー行の下端
+    # ヘッダー以下を白とブレンドしてグレーアウト
+    arr[header_bottom_y:, :] = arr[header_bottom_y:, :] * 0.35 + 255 * 0.65
+    base = Image.fromarray(arr.astype(np.uint8))
+
     d = ImageDraw.Draw(base)
     f34=F(34); f30=F(30)
 
@@ -112,16 +120,14 @@ def render_hotline_norequest(header):
     else: dm(778,138,r=18)
     d.text((X(1080),Y(106)), header["leader"], font=f34, fill="black")
 
-    # 「搬送依頼なし」を中央に大きく描画
-    f_big = get_font(int(110 * s))
+    # 「搬送依頼なし」をヘッダー直下に黒で描画
+    f_big = get_font(int(120 * s))
     msg = "搬送依頼なし"
     bb = d.textbbox((0,0), msg, font=f_big)
     tw, th = bb[2]-bb[0], bb[3]-bb[1]
     mx = (W - tw) // 2
-    my = (H - th) // 2
-    # 薄いグレーで描画（印刷時に目立ちすぎないよう）
-    d.text((mx+3, my+3), msg, font=f_big, fill=(200,200,200))
-    d.text((mx, my), msg, font=f_big, fill=(140,140,140))
+    my = Y(250)   # ヘッダー直下・上寄り
+    d.text((mx, my), msg, font=f_big, fill=(60,60,60))
 
     return base
     base = Image.open("hotline.png").convert("RGB")
