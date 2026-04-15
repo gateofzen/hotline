@@ -463,8 +463,7 @@ def hl_make_print_widget(pil_img, key="print"):
 st.divider()
 oc1,oc2=st.columns(2)
 with oc1:
-    if st.button("🖨️ 受付対応表を生成",type="primary",use_container_width=True,
-                 disabled=(len(st.session_state.hl_cases)==0)):
+    if st.button("🖨️ 受付対応表を生成",type="primary",use_container_width=True):
         date_str = input_date.strftime('%Y%m%d')
         all_images = []
 
