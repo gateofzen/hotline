@@ -130,6 +130,8 @@ def render_hotline_norequest(header):
     d.text((mx, my), msg, font=f_big, fill=(60,60,60))
 
     return base
+
+def render_hotline(header, cases, sheet_no=1):
     base = Image.open("hotline.png").convert("RGB")
     W, H = base.size
     sx=W/1413; sy=H/2000; s=min(sx,sy)
