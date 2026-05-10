@@ -235,7 +235,9 @@ def render_hotline(header, cases, sheet_no=1):
 if "hl_cases" not in st.session_state:
     st.session_state.hl_cases = load_cases()
 if "hl_header" not in st.session_state:
-    st.session_state.hl_header = {"date": date.today().isoformat(), "leader": "前川"}
+    from datetime import timezone as _tz0, timedelta as _td0
+    _jst_today0 = __import__('datetime').datetime.now(_tz0(_td0(hours=9))).date()
+    st.session_state.hl_header = {"date": _jst_today0.isoformat(), "leader": "前川"}
 if "hl_images" not in st.session_state:
     st.session_state.hl_images = []
 
@@ -243,7 +245,8 @@ if "hl_images" not in st.session_state:
 st.subheader("📋 基本情報")
 c1,c2 = st.columns(2)
 with c1:
-    _today = date.today()
+    from datetime import timezone as _tz_jst, timedelta as _td_jst
+    _today = __import__('datetime').datetime.now(_tz_jst(_td_jst(hours=9))).date()
     # keyを今日の日付に連動させることで日付変更時に確実にリセット
     input_date = st.date_input("日付", value=_today, key=f"hl_date_{_today.isoformat()}")
 with c2:
@@ -493,7 +496,16 @@ with oc1:
             else:
                 _header_date = input_date.isoformat()
 
-            header_for_render = {"date": _header_date, "shift": shift_label, "leader": leader}
+            # リーダー: 夜勤は_header_dateの夜勤リーダーを使用
+            if shift_label == "夜勤":
+                from datetime import date as _hdate
+                _hd = _hdate.fromisoformat(_header_date)
+                _night_leader = get_leader(_hd, "夜勤")
+                _shift_leader = _night_leader if _night_leader else leader
+            else:
+                _shift_leader = leader
+
+            header_for_render = {"date": _header_date, "shift": shift_label, "leader": _shift_leader}
 
             if not shift_cases:
                 # 搬送依頼なしシート
