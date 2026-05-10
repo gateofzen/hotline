@@ -243,13 +243,9 @@ if "hl_images" not in st.session_state:
 st.subheader("📋 基本情報")
 c1,c2 = st.columns(2)
 with c1:
-    # 日付は常に今日をデフォルト（セッションフラグに依存しない）
     _today = date.today()
-    saved_date = st.session_state.hl_header.get("date", _today.isoformat())
-    # 別日のセッションが残っている場合は常に今日にリセット
-    if saved_date != _today.isoformat():
-        saved_date = _today.isoformat()
-    input_date = st.date_input("日付", value=date.fromisoformat(str(saved_date)))
+    # keyを今日の日付に連動させることで日付変更時に確実にリセット
+    input_date = st.date_input("日付", value=_today, key=f"hl_date_{_today.isoformat()}")
 with c2:
     # 入力日付とその時刻（現在時刻）からデフォルトリーダーを決定
     from datetime import timezone as _hltz, timedelta as _hltd
