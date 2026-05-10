@@ -471,26 +471,25 @@ with oc1:
         all_images = []
 
         for shift_label, shift_cases in [("日勤", nisshin), ("夜勤", yashin)]:
-            # 夜勤の日付判定：
-            # - 16:30以降の症例 → input_dateの夜勤 → 日付はinput_date
-            # - 00:00-08:30の症例 → 前日夜勤扱い → 日付はinput_date-1
-            # 症例がある場合は最初の症例の時刻で判定
-            # 症例がない場合は現在時刻で判定
+            # 夜勤ヘッダー日付: 常に実際の今日の日付から算出（input_dateに依存しない）
+            # 16:30以降の時刻 → 今日が夜勤の開始日
+            # 00:00-08:30の時刻 → 前日が夜勤の開始日
             if shift_label == "夜勤":
+                from datetime import timezone as _tz2, timedelta as _td2
+                _jst_now2 = __import__('datetime').datetime.now(_tz2(_td2(hours=9)))
+                _actual_today = _jst_now2.date()
                 if shift_cases:
                     _first_time = shift_cases[0].get("time","")
                     _h = int(_first_time.split(":")[0]) if _first_time and ":" in _first_time else 20
                     _m = int(_first_time.split(":")[1]) if _first_time and ":" in _first_time else 0
                 else:
-                    from datetime import timezone as _tz, timedelta as _td
-                    _now = __import__('datetime').datetime.now(_tz(_td(hours=9)))
-                    _h, _m = _now.hour, _now.minute
-                # 00:00-08:30は前日夜勤
+                    _h, _m = _jst_now2.hour, _jst_now2.minute
+                # 00:00-08:30は前日（昨日）の夜勤
                 if _h < 8 or (_h == 8 and _m < 30):
                     from datetime import timedelta
-                    _header_date = (input_date - timedelta(days=1)).isoformat()
+                    _header_date = (_actual_today - timedelta(days=1)).isoformat()
                 else:
-                    _header_date = input_date.isoformat()
+                    _header_date = _actual_today.isoformat()
             else:
                 _header_date = input_date.isoformat()
 
