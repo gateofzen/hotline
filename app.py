@@ -250,11 +250,22 @@ with c1:
     # keyを今日の日付に連動させることで日付変更時に確実にリセット
     input_date = st.date_input("日付", value=_today, key=f"hl_date_{_today.isoformat()}")
 with c2:
-    # 入力日付とその時刻（現在時刻）からデフォルトリーダーを決定
+    # 現在時刻のJST日付とシフトを正しく取得（日付またぎ対応）
     from datetime import timezone as _hltz, timedelta as _hltd
     _hl_jst = __import__('datetime').datetime.now(_hltz(_hltd(hours=9)))
-    _hl_shift_tmp = "日勤" if 8*60+30 <= _hl_jst.hour*60+_hl_jst.minute < 16*60+30 else "夜勤"
-    _hl_leader_def = get_leader(input_date, _hl_shift_tmp)
+    _hl_h, _hl_m = _hl_jst.hour, _hl_jst.minute
+    _hl_minutes = _hl_h * 60 + _hl_m
+    # 00:00-08:30は前日の夜勤
+    if _hl_minutes < 8*60+30:
+        _hl_shift_tmp = "夜勤"
+        _hl_leader_date = (_hl_jst.date() - __import__('datetime').timedelta(days=1))
+    elif _hl_minutes < 16*60+30:
+        _hl_shift_tmp = "日勤"
+        _hl_leader_date = _hl_jst.date()
+    else:
+        _hl_shift_tmp = "夜勤"
+        _hl_leader_date = _hl_jst.date()
+    _hl_leader_def = get_leader(_hl_leader_date, _hl_shift_tmp)
     _hl_def_idx = LEADERS.index(_hl_leader_def) if _hl_leader_def in LEADERS else LEADERS.index(st.session_state.hl_header.get("leader","前川")) if st.session_state.hl_header.get("leader") in LEADERS else 0
     leader = st.selectbox("リーダー医師名", LEADERS, index=_hl_def_idx)
 st.session_state.hl_header = {"date": input_date.isoformat(), "leader": leader}
