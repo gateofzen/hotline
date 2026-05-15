@@ -496,14 +496,11 @@ with oc1:
             else:
                 _header_date = input_date.isoformat()
 
-            # リーダー: 夜勤は_header_dateの夜勤リーダーを使用
-            if shift_label == "夜勤":
-                from datetime import date as _hdate
-                _hd = _hdate.fromisoformat(_header_date)
-                _night_leader = get_leader(_hd, "夜勤")
-                _shift_leader = _night_leader if _night_leader else leader
-            else:
-                _shift_leader = leader
+            # リーダー: 各シフトの正しいリーダーをスケジュールから取得
+            from datetime import date as _hdate_cls
+            _hd = _hdate_cls.fromisoformat(_header_date)
+            _sched_leader = get_leader(_hd, shift_label)
+            _shift_leader = _sched_leader if _sched_leader else leader
 
             header_for_render = {"date": _header_date, "shift": shift_label, "leader": _shift_leader}
 
