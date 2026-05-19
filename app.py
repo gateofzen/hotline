@@ -27,6 +27,7 @@ def get_font(size):
 
 # ===== ファイル永続化 =====
 CASES_FILE = "hl_cases.json"
+HL_TRASH_FILE = "hl_trash.json"
 
 def load_cases():
     if os.path.exists(CASES_FILE):
@@ -41,6 +42,37 @@ def save_cases(cases):
         with open(CASES_FILE, "w", encoding="utf-8") as f:
             json.dump(cases, f, ensure_ascii=False, indent=2)
     except: pass
+
+def load_hl_trash():
+    if os.path.exists(HL_TRASH_FILE):
+        try:
+            with open(HL_TRASH_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except: return []
+    return []
+
+def save_hl_trash(trash):
+    try:
+        with open(HL_TRASH_FILE, "w", encoding="utf-8") as f:
+            json.dump(trash, f, ensure_ascii=False, indent=2)
+    except: pass
+
+def move_hl_to_trash(cases_list):
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    trash = load_hl_trash()
+    now_str = _dt.now(_tz(_td(hours=9))).isoformat()
+    for c in cases_list:
+        trash.append({"case": c, "deleted_at": now_str})
+    save_hl_trash(trash)
+
+def purge_hl_expired_trash():
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    trash = load_hl_trash()
+    now = _dt.now(_tz(_td(hours=9)))
+    kept = [t for t in trash if (now - _dt.fromisoformat(t["deleted_at"])).total_seconds() < 86400]
+    if len(kept) != len(trash):
+        save_hl_trash(kept)
+    return kept
 
 # ===== 時刻から勤務帯判定 =====
 def time_to_shift(time_str):
@@ -234,6 +266,7 @@ def render_hotline(header, cases, sheet_no=1):
 # ===== セッション状態 =====
 if "hl_cases" not in st.session_state:
     st.session_state.hl_cases = load_cases()
+    purge_hl_expired_trash()
 if "hl_header" not in st.session_state:
     from datetime import timezone as _tz0, timedelta as _td0
     _jst_today0 = __import__('datetime').datetime.now(_tz0(_td0(hours=9))).date()
@@ -311,6 +344,7 @@ if n > 0:
                 st.rerun()
         with cd:
             if st.button("🗑", key=f"hl_del_{i}", help="削除"):
+                move_hl_to_trash([st.session_state.hl_cases[i]])
                 st.session_state.hl_cases.pop(i)
                 save_cases(st.session_state.hl_cases)
                 if st.session_state.hl_editing == i:
@@ -597,11 +631,54 @@ with oc1:
             st.error(f"PDF生成エラー: {e}")
 
 with oc2:
-    if st.button("🗑️ 全症例をリセット",use_container_width=True):
-        st.session_state.hl_cases=[]
-        st.session_state.hl_images=[]
-        save_cases([])
-        st.rerun()
+    if "hl_confirm_clear" not in st.session_state:
+        st.session_state.hl_confirm_clear = False
+    if not st.session_state.hl_confirm_clear:
+        if st.button("🗑️ 全症例をリセット", use_container_width=True):
+            st.session_state.hl_confirm_clear = True
+            st.rerun()
+    else:
+        st.warning("⚠️ 全症例をゴミ箱に移動します。\n印刷前に削除していませんか？24時間以内なら復元可能です。")
+        hc1, hc2 = st.columns(2)
+        with hc1:
+            if st.button("✅ ゴミ箱に移動", type="primary", use_container_width=True):
+                move_hl_to_trash(st.session_state.hl_cases)
+                st.session_state.hl_cases = []
+                st.session_state.hl_images = []
+                save_cases([])
+                st.session_state.hl_confirm_clear = False
+                st.rerun()
+        with hc2:
+            if st.button("❌ キャンセル", use_container_width=True, key="hl_cancel_clear"):
+                st.session_state.hl_confirm_clear = False
+                st.rerun()
+
+# ===== ゴミ箱 =====
+_hl_trash = purge_hl_expired_trash()
+if _hl_trash:
+    with st.expander(f"🗑️ ゴミ箱（{len(_hl_trash)}件・24時間以内なら復元可）", expanded=True):
+        from datetime import datetime as _dthl, timezone as _tzhl, timedelta as _tdhl
+        _now_hl2 = _dthl.now(_tzhl(_tdhl(hours=9)))
+        for _hi, _ht in enumerate(_hl_trash):
+            _hc = _ht["case"]
+            _hname = f"{_hc.get('time','')} {_hc.get('team','')} {_hc.get('summary','')[:15]}"
+            try:
+                _hdel = _dthl.fromisoformat(_ht["deleted_at"])
+                _hremain = 24 - (_now_hl2 - _hdel).total_seconds() / 3600
+                _hremain_str = f"あと{_hremain:.0f}時間"
+            except: _hremain_str = ""
+            _hr1, _hr2 = st.columns([7, 2])
+            with _hr1:
+                st.markdown(f"<div style='font-size:13px'>{_hname}　<span style='color:#888'>（{_hremain_str}で完全削除）</span></div>", unsafe_allow_html=True)
+            with _hr2:
+                if st.button("↩️ 復元", key=f"hl_restore_{_hi}", use_container_width=True):
+                    full_trash = load_hl_trash()
+                    restored = full_trash.pop(_hi)
+                    save_hl_trash(full_trash)
+                    st.session_state.hl_cases.append(restored["case"])
+                    save_cases(st.session_state.hl_cases)
+                    st.success("✅ 復元しました")
+                    st.rerun()
 
 # ===== 勤務表リーダー設定 =====
 with st.expander("📅 勤務表リーダー設定", expanded=False):
