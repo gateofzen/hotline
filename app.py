@@ -396,8 +396,16 @@ if hl_edit_idx is not None and 0 <= hl_edit_idx < len(cases):
 
 # ===== 新規入力 =====
 st.divider()
-st.subheader(f"➕ 症例 {n+1} を入力")
-cc1,cc2=st.columns(2)
+if "hl_show_form" not in st.session_state:
+    st.session_state.hl_show_form = False
+
+if not st.session_state.hl_show_form:
+    if st.button("➕ 症例を登録する", type="primary", use_container_width=True):
+        st.session_state.hl_show_form = True
+        st.rerun()
+else:
+    st.subheader(f"➕ 症例 {n+1} を入力")
+    cc1,cc2=st.columns(2)
 with cc1:
     # 現在時刻（JST）を切り捨て（5分刻み）でデフォルトに
     from datetime import timezone, timedelta
@@ -435,16 +443,21 @@ if outcome=="お断り":
         reason3_dept=st.text_input("専門科名",key="inp_dept",placeholder="循環器")
         reason3_sub=st.selectbox("専門科理由詳細",["","当該科手術中","学会等で不在","麻酔科対応不能"],key="inp_r3")
 
-if st.button("✅ この症例を登録",type="primary",use_container_width=True):
-    st.session_state.hl_cases.append({
-        "time":sel_time,"team":team,"req_count":req_count,
-        "age":age if age>0 else "","gender":gender if gender!="未記載" else "",
-        "summary":summary,"outcome":outcome,"reason":reason,
-        "reason1_sub":reason1_sub,"reason2_sub":reason2_sub,
-        "reason3_dept":reason3_dept,"reason3_sub":reason3_sub,
-    })
-    save_cases(st.session_state.hl_cases)
-    st.rerun()
+if st.session_state.hl_show_form:
+    if st.button("✅ この症例を登録",type="primary",use_container_width=True):
+        st.session_state.hl_cases.append({
+            "time":sel_time,"team":team,"req_count":req_count,
+            "age":age if age>0 else "","gender":gender if gender!="未記載" else "",
+            "summary":summary,"outcome":outcome,"reason":reason,
+            "reason1_sub":reason1_sub,"reason2_sub":reason2_sub,
+            "reason3_dept":reason3_dept,"reason3_sub":reason3_sub,
+        })
+        save_cases(st.session_state.hl_cases)
+        st.session_state.hl_show_form = False  # 登録後はフォームを閉じる
+        st.rerun()
+    if st.button("❌ キャンセル", use_container_width=True, key="hl_form_cancel"):
+        st.session_state.hl_show_form = False
+        st.rerun()
 
 # ===== 印刷ウィジェット =====
 def hl_make_print_widget(pil_img, key="print"):
