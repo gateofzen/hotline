@@ -485,25 +485,22 @@ with oc1:
         all_images = []
 
         for shift_label, shift_cases in [("日勤", nisshin), ("夜勤", yashin)]:
-            # 夜勤ヘッダー日付: 常に実際の今日の日付から算出（input_dateに依存しない）
-            # 16:30以降の時刻 → 今日が夜勤の開始日
-            # 00:00-08:30の時刻 → 前日が夜勤の開始日
+            # 夜勤ヘッダー日付: 現在時刻から判定（症例の時刻ではなく）
+            # 夜勤は16:30〜翌8:30の勤務帯
+            # 現在が16:30以降 → 今夜の夜勤 → 今日の日付
+            # 現在が16:30未満 → 昨晩の夜勤が終わった → 昨日の日付
             if shift_label == "夜勤":
                 from datetime import timezone as _tz2, timedelta as _td2
                 _jst_now2 = __import__('datetime').datetime.now(_tz2(_td2(hours=9)))
                 _actual_today = _jst_now2.date()
-                if shift_cases:
-                    _first_time = shift_cases[0].get("time","")
-                    _h = int(_first_time.split(":")[0]) if _first_time and ":" in _first_time else 20
-                    _m = int(_first_time.split(":")[1]) if _first_time and ":" in _first_time else 0
+                _now_min = _jst_now2.hour * 60 + _jst_now2.minute
+                if _now_min >= 16 * 60 + 30:
+                    # 今夜の夜勤（16:30以降）
+                    _header_date = _actual_today.isoformat()
                 else:
-                    _h, _m = _jst_now2.hour, _jst_now2.minute
-                # 00:00-08:30は前日（昨日）の夜勤
-                if _h < 8 or (_h == 8 and _m < 30):
+                    # 昨晩の夜勤（00:00〜16:30の間に印刷）
                     from datetime import timedelta
                     _header_date = (_actual_today - timedelta(days=1)).isoformat()
-                else:
-                    _header_date = _actual_today.isoformat()
             else:
                 _header_date = input_date.isoformat()
 
