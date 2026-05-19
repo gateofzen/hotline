@@ -656,7 +656,7 @@ with oc2:
 # ===== ゴミ箱 =====
 _hl_trash = purge_hl_expired_trash()
 if _hl_trash:
-    with st.expander(f"🗑️ ゴミ箱（{len(_hl_trash)}件・24時間以内なら復元可）", expanded=True):
+    with st.expander(f"🗑️ ゴミ箱（{len(_hl_trash)}件・24時間以内なら復元可）", expanded=False):
         from datetime import datetime as _dthl, timezone as _tzhl, timedelta as _tdhl
         _now_hl2 = _dthl.now(_tzhl(_tdhl(hours=9)))
         for _hi, _ht in enumerate(_hl_trash):
