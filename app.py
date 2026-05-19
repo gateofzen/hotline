@@ -406,58 +406,58 @@ if not st.session_state.hl_show_form:
 else:
     st.subheader(f"➕ 症例 {n+1} を入力")
     cc1,cc2=st.columns(2)
-with cc1:
-    # 現在時刻（JST）を切り捨て（5分刻み）でデフォルトに
-    from datetime import timezone, timedelta
-    _jst = timezone(timedelta(hours=9))
-    _now = datetime.now(_jst)
-    _rounded = f"{_now.hour:02d}:{(_now.minute // 5) * 5:02d}"
-    _nearest_idx = TIME_OPTIONS.index(_rounded) if _rounded in TIME_OPTIONS else 0
-    sel_time=st.selectbox("時刻", TIME_OPTIONS, index=_nearest_idx, key="inp_time")
-    if sel_time:
-        st.caption(f"→ **{time_to_shift(sel_time)}**")
-with cc2:
-    team_sel = st.selectbox("依頼先救急隊", RESCUE_TEAMS + ["その他（直接入力）"], key="inp_team")
-    if team_sel == "その他（直接入力）":
-        team = st.text_input("救急隊名を入力", key="inp_team_other", placeholder="例: 石狩")
-    else:
-        team = team_sel
-cc3,cc4,cc5=st.columns(3)
-with cc3: req_count=st.selectbox("依頼回数",["初回","2回目","3回目","4回目以上"],key="inp_req")
-with cc4: age=st.number_input("年齢（才）",min_value=0,max_value=120,value=0,step=1,key="inp_age")
-with cc5: gender=st.radio("性別",["M","F","未記載"],horizontal=True,key="inp_gender")
-summary=st.text_area("概略",height=70,key="inp_summary",placeholder="主訴・経過を入力")
-outcome=st.radio("転帰",["搬入","お断り","2次やかかりつけ医案内","患者都合","その他"],horizontal=True,key="inp_outcome")
-reason=reason1_sub=reason2_sub=reason3_dept=reason3_sub=""
-if outcome=="お断り":
-    reason=st.radio("お断り理由",["1_満床","2_マンパワー","3_院内専門科"],
-        format_func=lambda x:{"1_満床":"1. 病床の都合","2_マンパワー":"2. マンパワーの問題","3_院内専門科":"3. 院内専門科の都合"}[x],
-        key="inp_reason")
-    if reason=="1_満床":
-        reason1_sub=st.selectbox("病床理由詳細",
-            ["","満床・満床に準ずる状態","ICU個室(感染等)満床","熱傷患者受入不能"],key="inp_r1")
-    elif reason=="2_マンパワー":
-        reason2_sub=st.selectbox("マンパワー理由詳細",
-            ["","他患の処置・手術等で余力なし","別の救急患者の搬入直前・直後"],key="inp_r2")
-    elif reason=="3_院内専門科":
-        reason3_dept=st.text_input("専門科名",key="inp_dept",placeholder="循環器")
-        reason3_sub=st.selectbox("専門科理由詳細",["","当該科手術中","学会等で不在","麻酔科対応不能"],key="inp_r3")
-
-if st.session_state.hl_show_form:
-    if st.button("✅ この症例を登録",type="primary",use_container_width=True):
-        st.session_state.hl_cases.append({
-            "time":sel_time,"team":team,"req_count":req_count,
-            "age":age if age>0 else "","gender":gender if gender!="未記載" else "",
-            "summary":summary,"outcome":outcome,"reason":reason,
-            "reason1_sub":reason1_sub,"reason2_sub":reason2_sub,
-            "reason3_dept":reason3_dept,"reason3_sub":reason3_sub,
-        })
-        save_cases(st.session_state.hl_cases)
-        st.session_state.hl_show_form = False  # 登録後はフォームを閉じる
-        st.rerun()
-    if st.button("❌ キャンセル", use_container_width=True, key="hl_form_cancel"):
-        st.session_state.hl_show_form = False
-        st.rerun()
+    with cc1:
+        from datetime import timezone, timedelta
+        _jst = timezone(timedelta(hours=9))
+        _now = datetime.now(_jst)
+        _rounded = f"{_now.hour:02d}:{(_now.minute // 5) * 5:02d}"
+        _nearest_idx = TIME_OPTIONS.index(_rounded) if _rounded in TIME_OPTIONS else 0
+        sel_time=st.selectbox("時刻", TIME_OPTIONS, index=_nearest_idx, key="inp_time")
+        if sel_time:
+            st.caption(f"→ **{time_to_shift(sel_time)}**")
+    with cc2:
+        team_sel = st.selectbox("依頼先救急隊", RESCUE_TEAMS + ["その他（直接入力）"], key="inp_team")
+        if team_sel == "その他（直接入力）":
+            team = st.text_input("救急隊名を入力", key="inp_team_other", placeholder="例: 石狩")
+        else:
+            team = team_sel
+    cc3,cc4,cc5=st.columns(3)
+    with cc3: req_count=st.selectbox("依頼回数",["初回","2回目","3回目","4回目以上"],key="inp_req")
+    with cc4: age=st.number_input("年齢（才）",min_value=0,max_value=120,value=0,step=1,key="inp_age")
+    with cc5: gender=st.radio("性別",["M","F","未記載"],horizontal=True,key="inp_gender")
+    summary=st.text_area("概略",height=70,key="inp_summary",placeholder="主訴・経過を入力")
+    outcome=st.radio("転帰",["搬入","お断り","2次やかかりつけ医案内","患者都合","その他"],horizontal=True,key="inp_outcome")
+    reason=reason1_sub=reason2_sub=reason3_dept=reason3_sub=""
+    if outcome=="お断り":
+        reason=st.radio("お断り理由",["1_満床","2_マンパワー","3_院内専門科"],
+            format_func=lambda x:{"1_満床":"1. 病床の都合","2_マンパワー":"2. マンパワーの問題","3_院内専門科":"3. 院内専門科の都合"}[x],
+            key="inp_reason")
+        if reason=="1_満床":
+            reason1_sub=st.selectbox("病床理由詳細",
+                ["","満床・満床に準ずる状態","ICU個室(感染等)満床","熱傷患者受入不能"],key="inp_r1")
+        elif reason=="2_マンパワー":
+            reason2_sub=st.selectbox("マンパワー理由詳細",
+                ["","他患の処置・手術等で余力なし","別の救急患者の搬入直前・直後"],key="inp_r2")
+        elif reason=="3_院内専門科":
+            reason3_dept=st.text_input("専門科名",key="inp_dept",placeholder="循環器")
+            reason3_sub=st.selectbox("専門科理由詳細",["","当該科手術中","学会等で不在","麻酔科対応不能"],key="inp_r3")
+    bc1, bc2 = st.columns(2)
+    with bc1:
+        if st.button("✅ この症例を登録",type="primary",use_container_width=True):
+            st.session_state.hl_cases.append({
+                "time":sel_time,"team":team,"req_count":req_count,
+                "age":age if age>0 else "","gender":gender if gender!="未記載" else "",
+                "summary":summary,"outcome":outcome,"reason":reason,
+                "reason1_sub":reason1_sub,"reason2_sub":reason2_sub,
+                "reason3_dept":reason3_dept,"reason3_sub":reason3_sub,
+            })
+            save_cases(st.session_state.hl_cases)
+            st.session_state.hl_show_form = False
+            st.rerun()
+    with bc2:
+        if st.button("❌ キャンセル", use_container_width=True, key="hl_form_cancel"):
+            st.session_state.hl_show_form = False
+            st.rerun()
 
 # ===== 印刷ウィジェット =====
 def hl_make_print_widget(pil_img, key="print"):
